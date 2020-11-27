@@ -3,6 +3,7 @@
 #define TORRENT_RUNTIME_H_INCLUDED
 
 #include "shared.h"
+#include "bencode.h"
 
 /*
     The Torrent structure contains constant information on a particular torrent
@@ -18,7 +19,7 @@ typedef struct {
     execution of a particular torrent.
 */
 typedef struct {
-    struct Torrent* torrent;
+    Torrent* torrent;
 } TorrentRuntime;
 
 /*
