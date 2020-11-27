@@ -8,7 +8,7 @@ cli.o:
 	$(CC) $(CFLAGS) cli.c cli.h shared.h -c $(LDLIBS)
 
 cli: cli.o
-	$(CC) $(CFLAGS) -o cli cli.o $(LDLIBS)
+	$(CC) $(CFLAGS) -o bittorrent cli.o $(LDLIBS)
 
 clean:
 	rm -rf *~ *.o
