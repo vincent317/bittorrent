@@ -1,4 +1,7 @@
 
+#ifndef UPLOAD_MANAGER_H_INCLUDED
+#define UPLOAD_MANAGER_H_INCLUDED
+
 /*
     Function to create a new upload manager
     -   write_fd = the descriptor upload manager will write updates to
@@ -10,3 +13,4 @@
 void create_upload_manager(int write_fd, struct Torrent* torrent,
     struct TorrentPeer* peer, uint64_t start, uint64_t bytes);
 
+#endif

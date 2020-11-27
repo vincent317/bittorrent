@@ -1,4 +1,7 @@
 
+#ifndef CLI_H_INCLUDED
+#define CLI_H_INCLUDED
+
 /*
     The main function which executes when the program begins
 */
@@ -9,3 +12,5 @@ int main();
     - Listen to STDIN and process commands
 */
 void cli_periodic();
+
+#endif

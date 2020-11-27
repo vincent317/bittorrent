@@ -1,2 +1,7 @@
 
+#ifndef FILE_ASSEMBLER_H_INCLUDED
+#define FILE_ASSEMBLER_H_INCLUDED
 
+// TODO
+
+#endif

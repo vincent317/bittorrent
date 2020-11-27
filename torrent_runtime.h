@@ -1,4 +1,7 @@
 
+#ifndef TORRENT_RUNTIME_H_INCLUDED
+#define TORRENT_RUNTIME_H_INCLUDED
+
 /*
     The Torrent structure contains constant information on a particular torrent
     It does NOT have any state date related to the current progress on downloading
@@ -33,3 +36,5 @@ struct TorrentRuntime* create_torrent_runtime(const char* torrent_path, const ch
     A function called periodically where the Torrent Runtime can perform logic
 */
 void torrent_runtime_periodic();
+
+#endif
