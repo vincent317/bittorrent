@@ -2,22 +2,24 @@
 #ifndef TORRENT_RUNTIME_H_INCLUDED
 #define TORRENT_RUNTIME_H_INCLUDED
 
+#include "shared.h"
+
 /*
     The Torrent structure contains constant information on a particular torrent
     It does NOT have any state date related to the current progress on downloading
     a torrent or otherwise
 */
-struct Torrent {
+typedef struct {
     uint8_t info_hash[20];
-};
+} Torrent;
 
 /*
     A TorrentRuntime structure stores date related to the runtime or
     execution of a particular torrent.
 */
-struct TorrentRuntime {
+typedef struct {
     struct Torrent* torrent;
-};
+} TorrentRuntime;
 
 /*
     Called by the CLI when the user wants to download a new torrent
@@ -30,7 +32,7 @@ struct TorrentRuntime {
     -   Create a Peer Manager (via create_peer_manager)
     -   Create a Piece Manager (via create_piece_manager)
 */
-struct TorrentRuntime* create_torrent_runtime(const char* torrent_path, const char* file_path);
+TorrentRuntime* create_torrent_runtime(const char* torrent_path, const char* seed_path);
 
 /*
     A function called periodically where the Torrent Runtime can perform logic

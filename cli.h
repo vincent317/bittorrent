@@ -2,6 +2,8 @@
 #ifndef CLI_H_INCLUDED
 #define CLI_H_INCLUDED
 
+#include "shared.h"
+
 /*
     The main function which executes when the program begins
 */
