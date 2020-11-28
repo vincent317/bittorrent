@@ -1,6 +1,6 @@
 CC=gcc
 CFLAGS=-Wall -Iincludes -Wextra -std=gnu99 -ggdb
-LDLIBS=-lcrypto
+LDLIBS=-lcrypto -lm
 OBJS=cli.o torrent_runtime.o shared.o hash.o bencode.o
 
 all: cli

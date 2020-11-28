@@ -8,6 +8,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <string.h>
+#include <math.h>
 #include "hash.h"
 
 /*
@@ -15,5 +16,11 @@
     The returned string must be free'd
 */
 char* sha1_to_hexstr(uint8_t* hash);
+
+/*
+    Converts a size in bytes to a string
+    The returned string must be free'd
+*/
+char* calculateSize(uint64_t size);
 
 #endif
