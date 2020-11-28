@@ -13,6 +13,11 @@
 typedef struct {
     uint8_t info_hash[20];
     const char* tracker_url;
+    const char* name;
+    uint8_t multiple_files;
+    uint64_t length;
+    uint64_t piece_length;
+    uint8_t** piece_hashes;
 } Torrent;
 
 /*

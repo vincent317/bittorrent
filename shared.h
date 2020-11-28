@@ -5,6 +5,8 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 /*
     Converts a SHA-1 hash (20 bytes) into a string

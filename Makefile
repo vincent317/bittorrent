@@ -1,15 +1,18 @@
 CC=gcc
 CFLAGS=-Wall -Iincludes -Wextra -std=gnu99 -ggdb
 LDLIBS=-lcrypto
-OBJS=cli.o torrent_runtime.o
+OBJS=cli.o torrent_runtime.o bencode.o
 
 all: cli
 
-torrent_runtime.o:
-	$(CC) $(CFLAGS) torrent_runtime.c ./heapless-bencode/bencode.c -c $(LDLIBS)
+bencode.o:
+	$(CC) $(CFLAGS) -c ./heapless-bencode/bencode.c
+
+torrent_runtime.o: bencode.o
+	$(CC) $(CFLAGS) -c torrent_runtime.c -c $(LDLIBS)
 
 cli.o:
-	$(CC) $(CFLAGS) cli.c cli.h shared.h -c $(LDLIBS)
+	$(CC) $(CFLAGS) -c cli.c -c $(LDLIBS)
 
 cli: cli.o torrent_runtime.o
 	$(CC) $(CFLAGS) -o bittorrent $(OBJS) $(LDLIBS)
