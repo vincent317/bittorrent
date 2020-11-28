@@ -25,7 +25,6 @@ int parse_bencode(bencode_t* torrent_bencode, Torrent* torrent) {
         if (!bencode_dict_get_next(torrent_bencode, &dict_entry, &key, &keylen))
             return 1;
 
-        // get the tracker url
         if (strncmp(key, "announce", keylen) == 0) {
             bencode_string_value(&dict_entry, &val, &len);
             str = calloc(len + 1, sizeof(char));
@@ -33,7 +32,6 @@ int parse_bencode(bencode_t* torrent_bencode, Torrent* torrent) {
             torrent->tracker_url = str;
         };
 
-        // get the info field
         if (strncmp(key, "info", keylen) == 0) {
             while (bencode_dict_has_next(&dict_entry)) {
                 const char* info_key;
@@ -43,7 +41,6 @@ int parse_bencode(bencode_t* torrent_bencode, Torrent* torrent) {
                 if (!bencode_dict_get_next(&dict_entry, &info_entry, &info_key, &info_keylen))
                     return 1;
 
-                // read the name entry
                 if (strncmp(info_key, "name", info_keylen) == 0) {
                     bencode_string_value(&info_entry, &val, &len);
                     str = calloc(len + 1, sizeof(char));
@@ -51,7 +48,6 @@ int parse_bencode(bencode_t* torrent_bencode, Torrent* torrent) {
                     printf("Torrent Name: %s\n", str);
                 };
 
-                // read the length field
                 if (strncmp(info_key, "length", info_keylen) == 0) {
                     long int len_bytes;
                     bencode_int_value(&info_entry, &len_bytes);
@@ -59,14 +55,15 @@ int parse_bencode(bencode_t* torrent_bencode, Torrent* torrent) {
                     printf("Torrent Size: %ld bytes\n", len_bytes);
                 };
 
-                // read the piece length field
                 if (strncmp(info_key, "piece length", info_keylen) == 0) {
                     long int len_bytes;
                     bencode_int_value(&info_entry, &len_bytes);
                     torrent->piece_length = (uint64_t) len_bytes;
                 };
 
-                // TODO: Read in the pieces hashes
+                if (strncmp(info_key, "pieces", info_keylen) == 0) {
+
+                }
 
                 // TODO: Calculate hash of entire info field
             };
@@ -114,6 +111,9 @@ TorrentRuntime* create_torrent_runtime(const char* torrent_path, const char* see
         printf("Invalid .torrent file\n");
         exit(1);
     }
+
+    fclose(metainfo_stream);
+    free(metainfo);
 
     // create peer manager
     // TODO

@@ -16,6 +16,7 @@ typedef struct {
     const char* name;
     uint8_t multiple_files;
     uint64_t length;
+    uint64_t num_pieces;
     uint64_t piece_length;
     uint8_t** piece_hashes;
 } Torrent;
