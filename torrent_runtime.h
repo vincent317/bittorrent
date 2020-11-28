@@ -12,6 +12,7 @@
 */
 typedef struct {
     uint8_t info_hash[20];
+    const char* tracker_url;
 } Torrent;
 
 /*
@@ -21,6 +22,9 @@ typedef struct {
 typedef struct {
     Torrent* torrent;
 } TorrentRuntime;
+
+// Given a hash, this function returns the index of the piece
+uint32_t torrent_hash_to_piece_index(uint8_t* hash);
 
 /*
     Called by the CLI when the user wants to download a new torrent

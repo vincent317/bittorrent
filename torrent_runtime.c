@@ -8,7 +8,8 @@ TorrentRuntime* create_torrent_runtime(const char* torrent_path, const char* see
     runtime->torrent = torrent;
 
     // use bencoder library to parse .torrent file
-    // TODO
+    bencode_t torrent_bencode;
+    bencode_init(&torrent_bencode, )
 
     // create peer manager
     // TODO
