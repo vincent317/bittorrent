@@ -33,6 +33,12 @@ int parse_bencode(bencode_t* torrent_bencode, Torrent* torrent) {
         };
 
         if (strncmp(key, "info", keylen) == 0) {
+            uint8_t* ctx_dst = (uint8_t*) &torrent->info_hash[0];
+            struct sha1sum_ctx* ctx = sha1sum_create(NULL, 0);
+            sha1sum_finish(ctx, (uint8_t*) dict_entry.str, (size_t) dict_entry.len, ctx_dst);
+            torrent->hash_str = sha1_to_hexstr(ctx_dst);
+            printf("Torrent Hash: %s\n", torrent->hash_str);
+
             while (bencode_dict_has_next(&dict_entry)) {
                 const char* info_key;
                 int info_keylen;

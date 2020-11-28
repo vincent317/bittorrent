@@ -12,6 +12,7 @@
 */
 typedef struct {
     uint8_t info_hash[20];
+    const char* hash_str;
     const char* tracker_url;
     const char* name;
     uint8_t multiple_files;
