@@ -10,21 +10,21 @@ struct intList * requestedPieceList;
 
 
 
-void initDownloadPipe(){
+void init_download_pipe(){
     downloadintList = malloc(sizeof(struct intList));
     downloadintList->value = 0;
     downloadintList->next = downloadintList;
     downloadintList->prev = downloadintList;
 }
 
-void initUploadPipe(){
+void init_upload_pipe(){
     uploadintList = malloc(sizeof(struct intList));
     uploadintList->value = 0;
     uploadintList->next = uploadintList;
     uploadintList->prev = uploadintList;
 }
 
-void initRequestedPiece(){
+void init_requested_piece(){
     requestedPieceList = malloc(sizeof(struct intList));
     requestedPieceList->value = 0;
     requestedPieceList->next = requestedPieceList;
@@ -111,4 +111,15 @@ void removeRequestedPiece(int pieceIndex){
         }
         t = t->next;
     }
+}
+
+bool currently_requesting_piece(int pieceIndex){
+    struct intList * t = requestedPieceList;
+    while(t->next != requestedPieceList){
+        if(t->value == pieceIndex){
+            return true;
+        }
+        t = t->next;
+    }
+    return false;
 }

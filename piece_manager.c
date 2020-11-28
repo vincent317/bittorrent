@@ -1,7 +1,10 @@
 #include "piece_manager.h"
 #include "piece_manager_data.h"
+#include "peer_manager.h"
+#include "torrent_runtime.h"
+#include "shared.h"
 
-struct peerPiece * peerBitfieldList;
+//struct peerPiece * peerBitfieldList;
 
 
 
@@ -10,16 +13,17 @@ int maxNumPiece;
 
 void startup(){
     // Set initial for list
-    peerBitfieldList = malloc(sizeof(struct peerPiece));
+  /*  peerBitfieldList = malloc(sizeof(struct peerPiece));
     peerBitfieldList->bitfield = NULL;
     peerBitfieldList->socket = 0;
     peerBitfieldList->next = peerBitfieldList;
     peerBitfieldList->prev = peerBitfieldList;
+*/
 
     // Set initial for list
-    initDownloadPipe();
-    initUploadPipe();
-    initRequestedPiece();
+    init_download_pipe();
+    init_upload_pipe();
+    init_requested_piece();
 
 
 
@@ -27,15 +31,11 @@ void startup(){
     uint32_t pieceLen = 9;      // Get the piece length in the torrent file
     maxNumPiece = ceil((double) fileLen / pieceLen);
     myBitfield = malloc((int) ceil((double) maxNumPiece / 8));
-    printf("Num piece %d\n", maxNumPiece);
-    printf("Size of bitfield %d\n", (int)ceil((double) maxNumPiece / 8));
+
+
     // Bitfield - 1 represent have, 0 represent don't have
-
-
-
-
-
     // Part of the Path to the folder that hold the pieces download so far
+    
     // TODO: Call function to get torrent id
     char * torrentID = "1234";
     
@@ -46,7 +46,6 @@ void startup(){
     strcat(folderPath, torrentID);
    // strcat(folderPath, "/");
 
-    printf("Folder %s\n", folderPath);
     
     DIR *folder;
     struct dirent *file;
@@ -59,18 +58,24 @@ void startup(){
                 memcpy(pieceName, file->d_name, i);
                 pieceName[i] = '\0';
 
-                printf("%s\n", pieceName);
-
                 // Convert pieceHash to byte
                 uint8_t pieceHash[20];
                 convert(pieceHash, pieceName, strlen(pieceName));
 
-                // TODO: Find piece index of the pieceHash
+                // Get piece index from hash and set bitfield
+                int pieceIndex = torrent_hash_to_piece_index(pieceHash);
+                set_have_piece(myBitfield, pieceIndex);
             }
         }
         closedir(folder);
     }
 }
+
+
+uint8_t * get_my_bitfield(){
+    return myBitfield;
+}
+
 
 void convert(uint8_t * pieceHash, char * pieceName, int pieceNameLen){
     int pos;
@@ -88,7 +93,8 @@ void convert(uint8_t * pieceHash, char * pieceName, int pieceNameLen){
 }
 
 
-void addBitfield(int sock, uint8_t * bitfield, int bitfieldSize){
+/*
+void add_bitfield(int sock, uint8_t * bitfield, int bitfieldSize){
     struct peerPiece * v = malloc(sizeof(struct peerPiece));
     v->socket = sock;
     v->bitfield = malloc(bitfieldSize);
@@ -101,7 +107,7 @@ void addBitfield(int sock, uint8_t * bitfield, int bitfieldSize){
     v->prev = pos;
 }
 
-void updateBitfield(int sock, int pieceIndex){
+void update_bitfield(int sock, int pieceIndex){
     struct peerPiece * t = peerBitfieldList;
     while(t->next != peerBitfieldList){
         if(t->socket == sock){
@@ -112,36 +118,7 @@ void updateBitfield(int sock, int pieceIndex){
     }
 }
 
-
-void setHavePiece(uint8_t * bitfield, int pieceIndex){
-    int posByte = pieceIndex / 8;
-    int pos = 7 - (pieceIndex % 8);
-    int m = 1 << pos;
-    bitfield[posByte] = bitfield[posByte] | m;
-}
-
-// Check if the given bitfield have the given piece index
-bool havePiece(uint8_t * bitfield, int pieceIndex){
-    int posByte = pieceIndex / 8;
-    int pos = 7 - (pieceIndex % 8);
-    int m = 1 << pos;
-    uint8_t temp = bitfield[posByte]; 
-    return (temp & m) > 0;
-}
-
-// Check if all pieces had been downloaded
-bool haveAllPiece(){
-    bool result = true;
-    for(int i = 0; i < maxNumPiece; i++){
-        bool a = havePiece(myBitfield, i);
-        printf("%d %d\n", i, a);
-        result = result && a;
-    }
-
-    return result;
-}
-
-void removeBitfield(int sock){
+void remove_bitfield(int sock){
     struct peerPiece * t = peerBitfieldList;
     while(t->next != peerBitfieldList){
         if(t->socket == sock){
@@ -154,19 +131,19 @@ void removeBitfield(int sock){
         t = t->next;
     }
 }
+*/
 
-
-void sendPiece(int sock, uint8_t * pieceHash){
+void piece_manager_send_piece(int sock, uint8_t * pieceHash){
     struct downloadArg * data = malloc(sizeof(struct downloadArg));
     data->sock = sock;
     data->pieceHash = malloc(20);
     memcpy(data->pieceHash, pieceHash, 20);
 
     pthread_t tid1;
-    pthread_create(&tid1, NULL, threadSendPiece, (void *)data); 
+    pthread_create(&tid1, NULL, thread_send_piece, (void *)data); 
 }
 
-void * threadSendPiece(void *vargp){
+void * thread_send_piece(void *vargp){
     struct downloadArg * data = (struct downloadArg *) vargp;
     int sock = data->sock;
     uint8_t * pieceHash = data->pieceHash;
@@ -186,17 +163,17 @@ void * threadSendPiece(void *vargp){
 }
 
 
-void getPiece(int sock, int size){
+void get_piece(int sock, int size){
     struct uploadArg * data = malloc(sizeof(struct uploadArg));
     data->sock = sock;
     data->msgSize = size;
 
     pthread_t tid1;
-    pthread_create(&tid1, NULL, threadGetPiece, (void *)data); 
+    pthread_create(&tid1, NULL, thread_get_piece, (void *)data); 
 
 }
 
-void * threadGetPiece(void *vargp){
+void * thread_get_piece(void *vargp){
     struct uploadArg * data = (struct uploadArg *) vargp;
     int sock = data->sock;
     int msgSize = data->msgSize;
@@ -214,9 +191,70 @@ void * threadGetPiece(void *vargp){
     free(vargp);
 }
 
+void piece_manager_request_piece(){
+    struct Peer * smallest = NULL;
+    int minOccur = INT_MAX;
+    int minPiece = -1;
+
+    for(int i = 0; i < maxNumPiece; i++){
+        // Check that client don't have piece and had not send a request for the piece
+        if(!have_piece(myBitfield, i) && !currently_requesting_piece(i)){
+            int currentOccur = 0;
+            int currentPiece = -1;
+            struct Peer * root = get_root_peer();
+            struct Peer * currentPeer = root->next;
+            struct Peer * currentSmallest = NULL;
+
+            while(currentPeer != NULL){
+                // Client is interested and peer is not choking and 
+                // have current look at piece that client don't have
+                if(currentPeer->am_interested == 1 && currentPeer->peer_choking != 0 && have_piece(currentPeer->bitfield, i)){
+                    currentOccur++;
+                    currentSmallest = currentPeer;
+                    currentPiece = i;
+                }
+                currentPeer = currentPeer->next;
+            }
+            if(minOccur < currentOccur){
+                minOccur = currentOccur;
+                smallest = currentSmallest;
+                minPiece = currentPiece;
+            }
+        }
+    }
+
+
+    // TODO: call the peer_manager_begin_download to tell peer manager to send message to download piece
+    if(minPiece != -1){
 
 
 
+    }
+}
+
+
+void piece_manager_check_upload_download(){
+
+
+
+    
+}
+
+
+
+
+
+
+// Check if all pieces had been downloaded
+bool have_all_piece(){
+    bool result = true;
+    for(int i = 0; i < maxNumPiece; i++){
+        bool a = havePiece(myBitfield, i);
+        result = result && a;
+    }
+
+    return result;
+}
 
 int main(int argc, char *argv[]){
 

@@ -1,3 +1,6 @@
+#ifndef PIECE_MANAGER_DATA_H
+#define PIECE_MANAGER_DATA_H
+
 #include <stdint.h>
 #include <stdio.h>
 #include <pthread.h>
@@ -16,26 +19,39 @@ struct intList{
     int value;
 };
 
-void initDownloadPipe();
-void initUploadPipe();
-void initRequestedPiece();
+struct pairList{
+    struct intList * next;
+    struct intList * prev;
+
+    int sock;
+    int pieceIndex;
+};
+
+void init_download_pipe();
+void init_upload_pipe();
+void init_requested_piece();
 
 // add pipe to downloadList
-void addDownloadPipe(int sock);
+void add_download_pipe(int sock);
 
 // Remove pipe to downloadList
-void removeDownloadPipe(int sock);
+void remove_download_pipe(int sock);
 
 // add pipe to uploadList
-void addUploadPipe(int sock);
+void add_upload_pipe(int sock);
 
 // Remove pipe to downloadList
-void removeUploadPipe(int sock);
+void remove_upload_pipe(int sock);
 
 // add piece index to requested piece list
-void addRequestedPiece(int sock);
+void add_requested_piece(int pieceIndex);
 
 // Remove piece index to requested piece list
 // Call when got the piece or issue with connection 
 // so no longer can get the piece
-void removeRequestedPiece(int sock);
+void remove_requested_piece(int pieceIndex);
+
+// Check if given piece index had a request send for
+bool currently_requesting_piece(int pieceIndex);
+
+#endif
