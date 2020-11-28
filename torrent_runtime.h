@@ -11,8 +11,28 @@
     a torrent or otherwise
 */
 typedef struct {
+    struct TorrentFilePath* next;
+    char component[256];
+} TorrentFilePath;
+
+typedef struct {
+    struct TorrentFile* next_file;
+    TorrentFilePath* path;
+    uint64_t file_len;
+    char full_path[2048];
+} TorrentFile;
+
+typedef struct {
     uint8_t info_hash[20];
+    const char* hash_str;
     const char* tracker_url;
+    const char* name;
+    uint8_t multiple_files;
+    uint64_t length;
+    uint64_t num_pieces;
+    uint64_t piece_length;
+    uint8_t** piece_hashes;
+    TorrentFile* files;
 } Torrent;
 
 /*
