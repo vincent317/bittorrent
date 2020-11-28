@@ -239,7 +239,7 @@ void piece_manager_check_upload_download(){
 
     waitingTime.tv_sec = 0;
     waitingTime.tv_usec = 100;
-    int activity = select(maxPipe + 1, &uploadPipeSet, NULL, NULL, &waitingTime);
+    activity = select(maxPipe + 1, &uploadPipeSet, NULL, NULL, &waitingTime);
     if(activity < 0){
         perror("select() fail for upload pipe");
         exit(EXIT_FAILURE);
