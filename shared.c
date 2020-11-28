@@ -1,5 +1,6 @@
 
 #include "shared.h"
+#include <string.h>
 
 const char* sha1_to_hexstr(uint8_t* sha1_hash_binary) {
     char* hash_hex = calloc(sizeof(char) * 41, sizeof(char));
@@ -27,7 +28,7 @@ char* calculateSize(uint64_t size) {
     uint64_t  multiplier = exbibytes;
     int i;
 
-    for (i = 0; i < DIM(sizes); i++, multiplier /= 1024)
+    for (i = 0; i < (int) DIM(sizes); i++, multiplier /= 1024)
     {   
         if (size < multiplier)
             continue;
@@ -37,6 +38,7 @@ char* calculateSize(uint64_t size) {
             sprintf(result, "%.1f %s", (float) size / multiplier, sizes[i]);
         return result;
     }
+
     strcpy(result, "0");
     return result;
 };

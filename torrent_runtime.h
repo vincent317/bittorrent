@@ -12,7 +12,7 @@
 */
 typedef struct {
     struct TorrentFilePath* next;
-    const char component[256];
+    char component[256];
 } TorrentFilePath;
 
 typedef struct {

@@ -96,18 +96,18 @@ int parse_bencode(bencode_t* torrent_bencode, Torrent* torrent) {
                         // parse each field associated with the "file" key
                         while (bencode_dict_has_next(&file_dict)) {
                             bencode_t file_benk;
-                            char* file_field_name;
+                            const char* file_field_name;
                             int file_field_len;
 
                             bencode_dict_get_next(&file_dict, &file_benk, &file_field_name, &file_field_len);
                             
                             if (strncmp(file_field_name, "length", file_field_len) == 0) {
                                 if (
-                                    !bencode_int_value(&file_benk, &file->file_len) ||
+                                    !bencode_int_value(&file_benk, (long int*) &file->file_len) ||
                                     file->file_len <= 0
                                 ) {
                                     printf("error: .torrent file has corrupted file entry\n");
-                                    return;
+                                    return 1;
                                 }
 
                                 torrent->length += file->file_len;
@@ -140,7 +140,7 @@ int parse_bencode(bencode_t* torrent_bencode, Torrent* torrent) {
                                     if (last_path == NULL)
                                         file->path = path_component;
                                     else
-                                        last_path->next = path_component;
+                                        last_path->next = (struct TorrentFilePath*) path_component;
                                     
                                     last_path = path_component;
                                 }
@@ -149,13 +149,13 @@ int parse_bencode(bencode_t* torrent_bencode, Torrent* torrent) {
 
                         if (file->path == NULL) {
                             printf("error: .torrent file entry is missing a path\n");
-                            return;
+                            return 1;
                         }
 
                         if (ptr == NULL)
                             ptr = file;
                         else {
-                            ptr->next_file = file;
+                            ptr->next_file = (struct TorrentFile*) file;
                             ptr = file;
                         }
                     }
@@ -177,19 +177,19 @@ int parse_bencode(bencode_t* torrent_bencode, Torrent* torrent) {
 
                     int hashes_len;
                     const uint8_t* data;
-                    bencode_string_value(&info_entry, (const char*) &data, &hashes_len);
+                    bencode_string_value(&info_entry, (const char**) &data, &hashes_len);
 
                     torrent->num_pieces =
                         (uint64_t) ceil((double) torrent->length / (double) torrent->piece_length);
 
                     torrent->piece_hashes = malloc(sizeof(uint8_t*) * torrent->num_pieces);
 
-                    if (hashes_len != torrent->num_pieces * 20) {
+                    if (hashes_len != (int) torrent->num_pieces * 20) {
                         printf("error: .torrent file is corrupted - invalid pieces hash array\n");
                         return 1;
                     }
 
-                    for (int i = 0; torrent->num_pieces > i; i++) {
+                    for (uint64_t i = 0; torrent->num_pieces > i; i++) {
                         uint8_t* piece_hash = malloc(sizeof(uint8_t) * 20);
                         memcpy(piece_hash, data + 20*i, 20 * sizeof(uint8_t));
                         torrent->piece_hashes[i] = piece_hash;
@@ -225,6 +225,9 @@ int parse_bencode(bencode_t* torrent_bencode, Torrent* torrent) {
 };
 
 TorrentRuntime* create_torrent_runtime(const char* torrent_path, const char* seed_path) {
+    
+    // TODO: Handle Seed Path
+
     // initialize data structures
     Torrent* torrent = (Torrent*) malloc(sizeof(Torrent));
     TorrentRuntime* runtime = (TorrentRuntime*) malloc(sizeof(TorrentRuntime));
@@ -258,7 +261,7 @@ TorrentRuntime* create_torrent_runtime(const char* torrent_path, const char* see
     printf("Beginning download of torrent:\n");
     printf("- name: %s\n", torrent->name);
     printf("- size: %s\n", torrent_size);
-    printf("- pieces: %d x %s\n", torrent->num_pieces, piece_size);
+    printf("- pieces: %d x %s\n", (int) torrent->num_pieces, piece_size);
     printf("- files:\n");
 
     TorrentFile* fp = torrent->files;
@@ -267,7 +270,7 @@ TorrentRuntime* create_torrent_runtime(const char* torrent_path, const char* see
         char* file_size = calculateSize(fp->file_len);
         printf("  | %s (%s)\n", fp->full_path, file_size);
         free(file_size);
-        fp = fp->next_file;
+        fp = (TorrentFile*) fp->next_file;
     }
 
     free(piece_size);
