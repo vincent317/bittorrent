@@ -152,15 +152,13 @@ int parse_bencode(bencode_t* torrent_bencode, Torrent* torrent) {
                             return 1;
                         }
 
-                        if (ptr == NULL)
-                            ptr = file;
-                        else {
+                        if (ptr != NULL)
                             ptr->next_file = (struct TorrentFile*) file;
-                            ptr = file;
-                        }
-                    }
+                        else
+                            torrent->files = file;
 
-                    torrent->files = ptr;
+                        ptr = file;
+                    }
                 };
 
                 if (strncmp(info_key, "piece length", info_keylen) == 0) {
