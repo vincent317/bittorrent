@@ -3,6 +3,7 @@
 
 #include <stdlib.h>
 #include <stdint.h>
+#include "torrent_runtime.h"
 
 /*
     Questions:
@@ -39,6 +40,6 @@ int update_download_rate(struct Peer *peer, uint64_t download_rate);
 struct Peer *get_peer_from_socket(int socket);
 
 //starts the peer manager
-int start_peer_manager();
+int start_peer_manager(struct Torrent *torrent);
 
 #endif
