@@ -5,6 +5,12 @@ OBJS=cli.o torrent_runtime.o shared.o hash.o bencode.o
 
 all: cli
 
+piece_manager.o:
+	$(CC) $(CFLAGS) piece_manager.c -c $(LDLIBS)
+
+piece_manager_data.o:
+	$(CC) $(CFLAGS) piece_manager_data.c -c $(LDLIBS)
+
 shared.o:
 	$(CC) $(CFLAGS) shared.c -c $(LDLIBS)
 
@@ -20,7 +26,7 @@ torrent_runtime.o: bencode.o hash.o
 cli.o:
 	$(CC) $(CFLAGS) -c cli.c -c $(LDLIBS)
 
-cli: shared.o cli.o torrent_runtime.o
+cli: shared.o cli.o torrent_runtime.o piece_manager.o piece_manager_data.o
 	$(CC) $(CFLAGS) -o bittorrent $(OBJS) $(LDLIBS)
 
 clean:

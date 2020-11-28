@@ -12,16 +12,9 @@
 #include <stdbool.h>
 
 // Use as a list for holding download and upload pipe
-struct intList{
-    struct intList * next;
-    struct intList * prev;
-
-    int value;
-};
-
 struct pairList{
-    struct intList * next;
-    struct intList * prev;
+    struct pairList * next;
+    struct pairList * prev;
 
     int sock;
     int pieceIndex;
@@ -32,19 +25,26 @@ void init_upload_pipe();
 void init_requested_piece();
 
 // add pipe to downloadList
-void add_download_pipe(int sock);
+void add_download_pipe(int sock, int pieceIndex);
 
 // Remove pipe to downloadList
 void remove_download_pipe(int sock);
 
+// Return the list of download pipe
+struct pairList * get_download_pipe();
+
 // add pipe to uploadList
-void add_upload_pipe(int sock);
+void add_upload_pipe(int sock, int pieceIndex);
 
 // Remove pipe to downloadList
 void remove_upload_pipe(int sock);
 
+// Return the list of upload pipe
+struct pairList * get_upload_pipe();
+
+
 // add piece index to requested piece list
-void add_requested_piece(int pieceIndex);
+void add_requested_piece(int sock, int pieceIndex);
 
 // Remove piece index to requested piece list
 // Call when got the piece or issue with connection 

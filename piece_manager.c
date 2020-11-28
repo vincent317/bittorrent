@@ -77,20 +77,7 @@ uint8_t * get_my_bitfield(){
 }
 
 
-void convert(uint8_t * pieceHash, char * pieceName, int pieceNameLen){
-    int pos;
-    uint8_t val;
-    int i = 0;
-    for(pos = 0; pos < pieceNameLen; pos += 2){
-        char p[3];
-        memcpy(p, pieceName + pos, 2);
-        p[2] = '\0';
-        char * endPtr;
-        val = (uint8_t) strtoul(p, &endPtr, 16);
-        pieceHash[i] = val;
-        i++;
-    }
-}
+
 
 
 /*
@@ -133,39 +120,19 @@ void remove_bitfield(int sock){
 }
 */
 
-void piece_manager_send_piece(int sock, uint8_t * pieceHash){
+void piece_manager_send_piece(int sock, int pieceIndex){
     struct downloadArg * data = malloc(sizeof(struct downloadArg));
     data->sock = sock;
-    data->pieceHash = malloc(20);
-    memcpy(data->pieceHash, pieceHash, 20);
+    data->pieceIndex = pieceIndex;
 
     pthread_t tid1;
     pthread_create(&tid1, NULL, thread_send_piece, (void *)data); 
 }
 
-void * thread_send_piece(void *vargp){
-    struct downloadArg * data = (struct downloadArg *) vargp;
-    int sock = data->sock;
-    uint8_t * pieceHash = data->pieceHash;
-
-    int threadID = pthread_self();
-    // fd[0] - read
-    // fd[1] - write
-    int fd[2];
-    pipe(fd);
-    addUploadPipe(fd[1]);
-
-    // TODO: Call the function to download from download manager
-
-    
-    free(data->pieceHash);
-    free(vargp);
-}
-
-
-void get_piece(int sock, int size){
+void piece_manager_get_piece(int sock, int size, int pieceIndex){
     struct uploadArg * data = malloc(sizeof(struct uploadArg));
     data->sock = sock;
+    data->pieceIndex = pieceIndex;
     data->msgSize = size;
 
     pthread_t tid1;
@@ -173,32 +140,16 @@ void get_piece(int sock, int size){
 
 }
 
-void * thread_get_piece(void *vargp){
-    struct uploadArg * data = (struct uploadArg *) vargp;
-    int sock = data->sock;
-    int msgSize = data->msgSize;
-
-    int threadID = pthread_self();
-    // fd[0] - read
-    // fd[1] - write
-    int fd[2];
-    pipe(fd);
-    addDownloadPipe(fd[1]);
-
-    // TODO: Call the function to download from download manager
-
-
-    free(vargp);
-}
-
+// Current code can request multiple piece to same peer if that piece is among the rarest.
 void piece_manager_request_piece(){
-    struct Peer * smallest = NULL;
-    int minOccur = INT_MAX;
-    int minPiece = -1;
+    struct Peer * smallest = NULL;      // The peer that have the minPiece that client will send request to
+    int minOccur = INT_MAX;             // The number of peer that have the minPiece 
+    int minPiece = -1;                  // The current rarest piece
 
     for(int i = 0; i < maxNumPiece; i++){
         // Check that client don't have piece and had not send a request for the piece
         if(!have_piece(myBitfield, i) && !currently_requesting_piece(i)){
+            int chance = 6;
             int currentOccur = 0;
             int currentPiece = -1;
             struct Peer * root = get_root_peer();
@@ -208,9 +159,12 @@ void piece_manager_request_piece(){
             while(currentPeer != NULL){
                 // Client is interested and peer is not choking and 
                 // have current look at piece that client don't have
-                if(currentPeer->am_interested == 1 && currentPeer->peer_choking != 0 && have_piece(currentPeer->bitfield, i)){
+                if(currentPeer->am_interested == 1 && currentPeer->peer_choking == 0 && have_piece(currentPeer->bitfield, i)){
                     currentOccur++;
-                    currentSmallest = currentPeer;
+                    if(chance >= 5){
+                        currentSmallest = currentPeer;
+                    }
+                    chance = rand() % 10; 
                     currentPiece = i;
                 }
                 currentPeer = currentPeer->next;
@@ -228,13 +182,79 @@ void piece_manager_request_piece(){
     if(minPiece != -1){
 
 
-
+        // Track piece that have send request for
+        add_requested_piece(minPiece, smallest->socket);
     }
 }
 
 
 void piece_manager_check_upload_download(){
+    struct timeval waitingTime;
+    fd_set downloadPipeSet;
+    fd_set uploadPipeSet;
+    struct pairList * downloadPipeList = get_download_pipe();
+    struct pairList * uploadPipeList = get_upload_pipe();
 
+    // Process download pipe
+    struct pairList * currentElem = downloadPipeList->next;
+    int maxPipe = 0;
+    while(currentElem != downloadPipeList){
+        FD_ZERO(&downloadPipeSet);
+        FD_SET(currentElem->sock, &downloadPipeSet);
+        maxPipe = maxPipe > currentElem->sock ? maxPipe : currentElem->sock;
+        currentElem = currentElem->next;
+    }
+
+    waitingTime.tv_sec = 0;
+    waitingTime.tv_usec = 100;
+    int activity = select(maxPipe + 1, &downloadPipeSet, NULL, NULL, &waitingTime);
+    if(activity < 0){
+        perror("select() fail for download pipe");
+        exit(EXIT_FAILURE);
+    }
+
+
+    currentElem = downloadPipeList->next;
+    while(currentElem != downloadPipeList){
+        if(FD_ISSET(currentElem->sock, &downloadPipeSet)){
+            // TODO: Read from pipe and react as needed
+        
+        
+        
+        }
+        currentElem = currentElem->next;
+    }
+
+
+    // Process upload pipe
+
+    currentElem = uploadPipeList->next;
+    maxPipe = 0;
+    while(currentElem != uploadPipeList){
+        FD_ZERO(&uploadPipeSet);
+        FD_SET(currentElem->sock, &uploadPipeSet);
+        maxPipe = maxPipe > currentElem->sock ? maxPipe : currentElem->sock;
+        currentElem = currentElem->next;        
+    }
+
+    waitingTime.tv_sec = 0;
+    waitingTime.tv_usec = 100;
+    int activity = select(maxPipe + 1, &uploadPipeSet, NULL, NULL, &waitingTime);
+    if(activity < 0){
+        perror("select() fail for upload pipe");
+        exit(EXIT_FAILURE);
+    }
+
+    currentElem = uploadPipeList->next;
+    while(currentElem != uploadPipeList){
+        if(FD_ISSET(currentElem->sock, &uploadPipeSet)){
+            // TODO: Read from pipe and react as needed
+        
+        
+        
+        }
+        currentElem = currentElem->next;
+    }
 
 
     
@@ -242,20 +262,77 @@ void piece_manager_check_upload_download(){
 
 
 
-
+void convert(uint8_t * pieceHash, char * pieceName, int pieceNameLen){
+    int pos;
+    uint8_t val;
+    int i = 0;
+    for(pos = 0; pos < pieceNameLen; pos += 2){
+        char p[3];
+        memcpy(p, pieceName + pos, 2);
+        p[2] = '\0';
+        char * endPtr;
+        val = (uint8_t) strtoul(p, &endPtr, 16);
+        pieceHash[i] = val;
+        i++;
+    }
+}
 
 
 // Check if all pieces had been downloaded
 bool have_all_piece(){
     bool result = true;
     for(int i = 0; i < maxNumPiece; i++){
-        bool a = havePiece(myBitfield, i);
+        bool a = have_piece(myBitfield, i);
         result = result && a;
     }
 
     return result;
 }
 
+
+
+void * thread_send_piece(void *vargp){
+    struct downloadArg * data = (struct downloadArg *) vargp;
+    int sock = data->sock;
+    int pieceIndex = data->pieceIndex;
+
+    pthread_t threadID = pthread_self();
+    // fd[0] - read
+    // fd[1] - write
+    int fd[2];
+    pipe(fd);
+    add_upload_pipe(fd[1], pieceIndex);
+
+    // TODO: Call the function to download from download manager
+
+    
+    free(vargp);
+}
+
+
+void * thread_get_piece(void *vargp){
+    struct uploadArg * data = (struct uploadArg *) vargp;
+    int sock = data->sock;
+    int pieceIndex = data->pieceIndex;
+    int msgSize = data->msgSize;
+
+    pthread_t threadID = pthread_self();
+    // fd[0] - read
+    // fd[1] - write
+    int fd[2];
+    pipe(fd);
+
+    add_download_pipe(fd[1], pieceIndex);
+
+    // TODO: Call the function to download from download manager
+
+
+    free(vargp);
+}
+
+
+
+/*
 int main(int argc, char *argv[]){
 
     startup();
@@ -263,32 +340,34 @@ int main(int argc, char *argv[]){
     uint8_t c[4];
     memset(c, 0, sizeof(char) * 4);
 
-    setHavePiece(c, 19);
-    setHavePiece(c, 0);
-    setHavePiece(c, 12);
-    setHavePiece(c, 5);
-    setHavePiece(c, 30);
+    set_have_piece(c, 19);
+    set_have_piece(c, 0);
+    set_have_piece(c, 12);
+    set_have_piece(c, 5);
+    set_have_piece(c, 30);
 
     printf("%d %d %d %d\n", c[0], c[1], c[2], c[3]);
-/*
+
     for(int i = 0; i < 32; i++){
         bool a = havePiece(c, i);
         printf("%d %d\n", i, a);
 
     }
-*/
-    setHavePiece(myBitfield, 0);
-    setHavePiece(myBitfield, 1);
-    setHavePiece(myBitfield, 2);
-    setHavePiece(myBitfield, 3);
-    setHavePiece(myBitfield, 4);
-    setHavePiece(myBitfield, 5);
-    setHavePiece(myBitfield, 6);
-    setHavePiece(myBitfield, 7);
-    setHavePiece(myBitfield, 8);
-    setHavePiece(myBitfield, 9);
-    setHavePiece(myBitfield, 10);
-    setHavePiece(myBitfield, 11);
-    printf("%d", haveAllPiece());
+
+    set_have_piece(myBitfield, 0);
+    set_have_piece(myBitfield, 1);
+    set_have_piece(myBitfield, 2);
+    set_have_piece(myBitfield, 3);
+    set_have_piece(myBitfield, 4);
+    set_have_piece(myBitfield, 5);
+    set_have_piece(myBitfield, 6);
+    set_have_piece(myBitfield, 7);
+    set_have_piece(myBitfield, 8);
+    set_have_piece(myBitfield, 9);
+    set_have_piece(myBitfield, 10);
+    set_have_piece(myBitfield, 11);
+    printf("%d", have_all_piece());
 
 }
+*/
+

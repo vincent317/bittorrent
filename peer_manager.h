@@ -40,6 +40,6 @@ int update_download_rate(struct Peer *peer, uint64_t download_rate);
 struct Peer *get_peer_from_socket(int socket);
 
 //starts the peer manager
-int start_peer_manager(struct Torrent *torrent);
+int start_peer_manager(Torrent *torrent);
 
 #endif

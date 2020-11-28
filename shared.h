@@ -17,7 +17,7 @@
     Converts a SHA-1 hash (20 bytes) into a string
     The returned string must be free'd
 */
-char* sha1_to_hexstr(uint8_t* hash);
+const char* sha1_to_hexstr(uint8_t* hash);
 
 /*
     Converts a size in bytes to a string

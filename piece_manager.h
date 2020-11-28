@@ -12,6 +12,7 @@
 #include <stdbool.h>
 #include <sys/types.h>
 #include <limits.h>
+#include <sys/select.h>
 
 
 struct requestPiece{
@@ -29,12 +30,13 @@ struct peerPiece{
 // Struct to pass argument to download thread
 struct downloadArg{
     int sock;
-    uint8_t * pieceHash;
+    int pieceIndex;
 };
 
 // Struct to pass argument to upload thread
 struct uploadArg{
     int sock;
+    int pieceIndex;
     int msgSize;
 };
 
@@ -71,13 +73,13 @@ void remove_bitfield(int sock);
 // the piece with the pieceHash to sock
 // Will create the Upload Manager
 // NOTE: will add pipe to list called uploadPipe
-void piece_manager_send_piece(int sock, uint8_t * pieceHash);
+void piece_manager_send_piece(int sock, int pieceIndex);
 
 // Peer manager call this func to tell piece manager to get the piece
 // from the sock
 // Will create the thread for the Download Manager
 // NOTE: will add pipe to a list called downloadPipe
-void piece_manager_get_piece(int sock, int size);
+void piece_manager_get_piece(int sock, int size, int pieceIndex);
 
 
 // Peer manager call to find what piece to request next and from whom.
