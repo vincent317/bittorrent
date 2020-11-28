@@ -38,4 +38,7 @@ int update_download_rate(struct Peer *peer, uint64_t download_rate);
 //returns the peer from the given socket
 struct Peer *get_peer_from_socket(int socket);
 
+//starts the peer manager
+int start_peer_manager();
+
 #endif
