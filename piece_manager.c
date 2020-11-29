@@ -152,8 +152,7 @@ void piece_manager_request_piece(){
             int chance = 6;
             int currentOccur = 0;
             int currentPiece = -1;
-            struct Peer * root = get_root_peer();
-            struct Peer * currentPeer = root->next;
+            struct Peer * currentPeer = get_root_peer();
             struct Peer * currentSmallest = NULL;
 
             while(currentPeer != NULL){
