@@ -11,7 +11,7 @@ piece_manager.o:
 piece_manager_data.o:
 	$(CC) $(CFLAGS) piece_manager_data.c -c $(LDLIBS)
 
-peer_manager: torrent_runtime.o
+peer_manager.o:
 	$(CC) $(CFLAGS) peer_manager.c -c $(LDLIBS)
 
 shared.o:
@@ -23,14 +23,14 @@ hash.o:
 bencode.o:
 	$(CC) $(CFLAGS) -c ./heapless-bencode/bencode.c
 
-torrent_runtime.o: bencode.o hash.o
+torrent_runtime.o: bencode.o hash.o peer_manager.o
 	$(CC) $(CFLAGS) -c torrent_runtime.c -c $(LDLIBS)
 
 cli.o:
 	$(CC) $(CFLAGS) -c cli.c -c $(LDLIBS)
 
 cli: shared.o cli.o torrent_runtime.o piece_manager.o piece_manager_data.o 
-	$(CC) $(CFLAGS) -o bittorrent $(OBJS) $(LDLIBS)
+	$(CC) $(CFLAGS) peer_manager.o -o bittorrent $(OBJS) $(LDLIBS)
 
 clean:
 	rm -rf *~ *.o

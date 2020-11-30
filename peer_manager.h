@@ -21,7 +21,7 @@ struct Peer{
     uint8_t am_choking, am_interested, peer_choking, peer_interested;
     uint64_t download_rate; 
     uint8_t *bitfield; //a dynamically allocated array, 
-    struct Peer *nextpeer;
+    struct Peer *next;
 };
 
 //returns the root peer of the peer linked list

@@ -4,10 +4,6 @@
 #include "peer_manager.h"
 #include <curl/curl.h>
 
-//20 bytes peer id
-char peer_id[21] = "zackdazhithong417fin";
-int tracker_response_length;
-
 struct TrackerResponse{
     uint8_t interval;
     char *tracker_id;
@@ -15,6 +11,11 @@ struct TrackerResponse{
     uint8_t incomplete;
     struct Peer *peers;
 };
+
+//20 bytes peer id
+char peer_id[21] = "zackdazhithong417fin";
+int tracker_response_length;
+struct TrackerResponse tracker_response = {0};
 
 size_t write_func(void *ptr, size_t size, size_t nmemb, char **write_stream){
     *write_stream = calloc(nmemb, size);
@@ -24,10 +25,23 @@ size_t write_func(void *ptr, size_t size, size_t nmemb, char **write_stream){
     }
     memcpy(*write_stream, ptr, size*nmemb);
     tracker_response_length = size*nmemb;
+    
+    bencode_t tracker_response_bencode;
+   
+    bencode_init(&tracker_response_bencode, *write_stream, tracker_response_length);   
+  
+    if(parse_tracker_response(&tracker_response_bencode, &tracker_response)) {
+        printf("Parsing the tracker response failed\n");
+        exit(1);
+    }  
     return size*nmemb;
 }
 
 int parse_tracker_response(bencode_t* tracker_response_bencode, struct TrackerResponse *trackerresponse){
+    const char* val;
+    char* str;
+    int len;
+
     while (bencode_dict_has_next(tracker_response_bencode)){
         const char* key;
         int keylen;
@@ -36,7 +50,14 @@ int parse_tracker_response(bencode_t* tracker_response_bencode, struct TrackerRe
         if (!bencode_dict_get_next(tracker_response_bencode, &dict_entry, &key, &keylen))
             return 1;
         
-        if (strncmp(key, "announce", keylen) == 0) {
+        if (strncmp(key, "failure reason", keylen) == 0) {
+            bencode_string_value(&dict_entry, &val, &len);
+            char str[len + 1];
+            str[len+1] = 0;
+            memcpy(str, val, len);
+            printf("Tracker Response with fail: %s\n", str);
+            return 1;
+        }
     }
 }
 
@@ -48,9 +69,14 @@ int start_peer_manager(Torrent *torrent){
     curl = curl_easy_init();
     if(curl) {
         char url[1000] = {0};
+
+        char *info_hash_encoded = curl_easy_escape(curl, (const char*)torrent->info_hash, 20);
+        char *peer_id_encoded = curl_easy_escape(curl, peer_id, 20);
+        
         sprintf(url, "%s?info_hash=%s&peer_id=%s&port=6881&uploaded=0&downloaded=0&left=%ld&compact=1&event=started", 
-            torrent->tracker_url,torrent->info_hash, peer_id, torrent->length);
-        curl_easy_setopt(curl, CURLOPT_URL, torrent->tracker_url);
+            torrent->tracker_url, info_hash_encoded, peer_id_encoded, torrent->length);
+
+        curl_easy_setopt(curl, CURLOPT_URL, url);
 
         char *response;
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_func);
@@ -61,31 +87,11 @@ int start_peer_manager(Torrent *torrent){
         fprintf(stderr, "curl_easy_perform() failed: %s\n",
                 curl_easy_strerror(res));
 
-        bencode_t torrent_bencode;
-        bencode_init(&torrent_bencode, response, tracker_response_length);   
-        
-        struct TrackerResponse tracker_response = {0};
-        if(parse_tracker_response(&torrent_bencode, &tracker_response)) {
-            printf("Parsing the tracker response failed\n");
-            exit(1);
-        }  
-
         /* always cleanup */ 
+        curl_free(info_hash_encoded);
+        curl_free(peer_id_encoded);
         free(response);
         curl_easy_cleanup(curl);
     }
 }
 
-int main(int argc, const char** argv){
-    if (argc != 2 && argc != 3) {
-        printf("Invalid execution, use: ./bittorrent <torrent path> [file/folder?]\n");
-        return 0;
-    }
-
-    const char* torrent_path = argv[1];
-    const char* seed_location = (argc == 2) ? argv[2] : NULL;
-
-    create_torrent_runtime(torrent_path, seed_location);
-
-    return 0;
-}
