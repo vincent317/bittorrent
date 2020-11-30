@@ -1,6 +1,6 @@
-
 #include "torrent_runtime.h"
 #include "bencode.h"
+
 
 void reset_torrent(Torrent* torrent) {
     torrent->hash_str = NULL;
@@ -276,8 +276,7 @@ TorrentRuntime* create_torrent_runtime(const char* torrent_path, const char* see
     fclose(metainfo_stream);
     free(metainfo);
 
-    // create peer manager
-    // TODO
+    
 
     // create piece manager
     // TODO
