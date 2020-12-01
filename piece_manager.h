@@ -47,10 +47,10 @@ struct uploadArg{
 
 // Piece manager look through the file system to see which 
 // pieces the client already has.
-void piece_manager_startup();
+void piece_manager_startup(Torrent * torrent);
 
 // Return the client bitfield
-uint8_t * get_my_bitfield();
+uint8_t * piece_manager_get_my_bitfield();
 
 /*
 // Give the sock and bitfield of the client that interested 
@@ -102,16 +102,18 @@ void piece_manager_request_piece();
 void piece_manager_check_upload_download();
 
 
-
-
-
 /////////////////////////////////////////////////////////////////////////
 //////////////////////////// HELPER /////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
+
+// Convert pieceHash to 0x folder name
+void convert_hash_to_name(uint8_t * pieceHash, char * folderName);
+
+
 // PieceName is a string of 40 character, where every 2 character represent a byte in hex value
 // So convert to piece hash which has 20 byte
-void convert(uint8_t * pieceHash, char * pieceName, int pieceNameLen);
+void convert_name_to_hash(uint8_t * pieceHash, char * pieceName, int pieceNameLen);
 
 // Check if all pieces had been downloaded
 bool have_all_piece();
