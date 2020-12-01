@@ -11,7 +11,7 @@
 uint8_t * myBitfield;
 int maxNumPiece;
 
-void startup(){
+void piece_manager_startup(Torrent * torrent){
     // Set initial for list
   /*  peerBitfieldList = malloc(sizeof(struct peerPiece));
     peerBitfieldList->bitfield = NULL;
@@ -27,9 +27,9 @@ void startup(){
 
 
 
-    uint32_t fileLen = 100;        // Get the length field in the torrent file
-    uint32_t pieceLen = 9;      // Get the piece length in the torrent file
-    maxNumPiece = ceil((double) fileLen / pieceLen);
+//    uint32_t fileLen = torrent->length;        // Get the length field in the torrent file
+//    uint32_t pieceLen = torrent->piece_length;      // Get the piece length in the torrent file
+    maxNumPiece = torrent->num_pieces;
     myBitfield = malloc((int) ceil((double) maxNumPiece / 8));
 
 
@@ -37,8 +37,9 @@ void startup(){
     // Part of the Path to the folder that hold the pieces download so far
     
     // TODO: Call function to get torrent id
-    char * torrentID = "1234";
-    
+    char torrentID[41];
+    convert_hash_to_name(torrent->info_hash, torrentID);
+ 
     char folderPath[100];
     memset(folderPath, 0, sizeof(char) * 100);
     folderPath[0] = '\0';
@@ -60,11 +61,13 @@ void startup(){
 
                 // Convert pieceHash to byte
                 uint8_t pieceHash[20];
-                convert(pieceHash, pieceName, strlen(pieceName));
+                convert_name_to_hash(pieceHash, pieceName, strlen(pieceName));
 
                 // Get piece index from hash and set bitfield
                 int pieceIndex = torrent_hash_to_piece_index(pieceHash);
-                set_have_piece(myBitfield, pieceIndex);
+                if(pieceIndex >= 0){
+                    set_have_piece(myBitfield, pieceIndex);
+                }
             }
         }
         closedir(folder);
@@ -72,7 +75,7 @@ void startup(){
 }
 
 
-uint8_t * get_my_bitfield(){
+uint8_t * piece_manager_get_my_bitfield(){
     return myBitfield;
 }
 
@@ -219,7 +222,6 @@ void piece_manager_check_upload_download(){
             // TODO: Read from pipe and react as needed
             char buffer[100];
             read(currentElem->sock, buffer, 100);
-        
         }
         currentElem = currentElem->next;
     }
@@ -261,8 +263,15 @@ void piece_manager_check_upload_download(){
 }
 
 
+void convert_hash_to_name(uint8_t * pieceHash, char * folderName){
+    for(int i = 0; i < 20; i++){
+        sprintf(folderName + 2 * i, "%02x", pieceHash[i]);
+    }
+    folderName[40] = '\0';
+}
 
-void convert(uint8_t * pieceHash, char * pieceName, int pieceNameLen){
+
+void convert_name_to_hash(uint8_t * pieceHash, char * pieceName, int pieceNameLen){
     int pos;
     uint8_t val;
     int i = 0;
