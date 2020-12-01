@@ -220,9 +220,8 @@ void piece_manager_check_upload_download(){
     while(currentElem != downloadPipeList){
         if(FD_ISSET(currentElem->sock, &downloadPipeSet)){
             // TODO: Read from pipe and react as needed
-
-
-        
+            char buffer[100];
+            read(currentElem->sock, buffer, 100);
         }
         currentElem = currentElem->next;
     }
@@ -251,7 +250,8 @@ void piece_manager_check_upload_download(){
     while(currentElem != uploadPipeList){
         if(FD_ISSET(currentElem->sock, &uploadPipeSet)){
             // TODO: Read from pipe and react as needed
-        
+            char buffer[100];
+            read(currentElem->sock, buffer, 100);
         
         
         }
