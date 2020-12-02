@@ -37,8 +37,7 @@ void piece_manager_startup(Torrent * torrent){
     // Part of the Path to the folder that hold the pieces download so far
     
     // TODO: Call function to get torrent id
-    char torrentID[41];
-    convert_hash_to_name(torrent->info_hash, torrentID);
+    char * torrentID = torrent->hash_str;
  
     char folderPath[100];
     memset(folderPath, 0, sizeof(char) * 100);
