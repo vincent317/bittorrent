@@ -1,6 +1,7 @@
-
 #include "torrent_runtime.h"
 #include "bencode.h"
+#include "peer_manager.h"
+
 
 void reset_torrent(Torrent* torrent) {
     torrent->hash_str = NULL;
@@ -51,11 +52,21 @@ int parse_bencode(bencode_t* torrent_bencode, Torrent* torrent) {
         };
 
         if (strncmp(key, "info", keylen) == 0) {
-            uint8_t* ctx_dst = (uint8_t*) &torrent->info_hash[0];
-            struct sha1sum_ctx* ctx = sha1sum_create(NULL, 0);
-            sha1sum_finish(ctx, (uint8_t*) dict_entry.str, (size_t) dict_entry.len, ctx_dst);
-            torrent->hash_str = sha1_to_hexstr(ctx_dst);
+            /*
+                Edited by Dazhi on 11/30/2020
+                Problem: The hash code here didnt work before. It was giving me inconsistent hash and the info string is also out of bound.
+                Fix: Use bencode_dict_get_start_and_len to get the correct info string, do NOT rely on the dict_entry.str & dict_entry.len.
+                Tested using the class 1184-0.txt.torrent and matched the reult on the class tracker. 
+            */
+            int len;
+            char *test;
+            bencode_dict_get_start_and_len(&dict_entry, &test,&len);
+            uint8_t* ctx_dst = (uint8_t*) torrent->info_hash;
+            struct sha1sum_ctx* ctx = sha1sum_create(NULL, 0);            
+            sha1sum_finish(ctx, test, len, ctx_dst);
+            sha1sum_destroy(ctx);
 
+            torrent->hash_str = sha1_to_hexstr(ctx_dst);
             while (bencode_dict_has_next(&dict_entry)) {
                 const char* info_key;
                 int info_keylen;
@@ -271,17 +282,17 @@ TorrentRuntime* create_torrent_runtime(const char* torrent_path, const char* see
         fp = (TorrentFile*) fp->next_file;
     }
 
+    start_peer_manager(torrent);
+
     free(piece_size);
     free(torrent_size);
     fclose(metainfo_stream);
     free(metainfo);
 
-    // create peer manager
-    // TODO
+    
 
-    // create piece manager
-    // TODO
-
+    
+    
     return runtime;
 };
 
