@@ -41,7 +41,7 @@ struct uploadArg{
 };
 
 /////////////////////////////////////////////////////////////////////////
-////////////////////// METHOD OTHER FILE WILL CALL //////////////////////
+////////////////////// METHOD OTHER FILE MAY  CALL //////////////////////
 /////////////////////////////////////////////////////////////////////////
 
 
@@ -51,6 +51,9 @@ void piece_manager_startup(Torrent * torrent);
 
 // Return the client bitfield
 uint8_t * piece_manager_get_my_bitfield();
+
+// Return the client bitfield's size
+int piece_manager_get_my_bitfield_size();
 
 /*
 // Give the sock and bitfield of the client that interested 
@@ -79,7 +82,7 @@ void piece_manager_send_piece(int sock, int pieceIndex);
 // from the sock
 // Will create the thread for the Download Manager
 // NOTE: will add pipe to a list called downloadPipe
-void piece_manager_get_piece(int sock, int size, int pieceIndex);
+void piece_manager_create_download_manager(struct Peer * peer, int pieceIndex, int pieceSize);
 
 
 // Peer manager call to find what piece to request next and from whom.
@@ -87,7 +90,7 @@ void piece_manager_get_piece(int sock, int size, int pieceIndex);
 // Method will allocate data
 // Will follow rarest first 
 // May give NULL for peer argument since no one have right condition
-void piece_manager_request_piece();
+void piece_manager_initiate_download();
 
 
 // Periodic call by peer manager to listen to the pipe make

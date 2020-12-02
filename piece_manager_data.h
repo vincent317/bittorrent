@@ -54,4 +54,6 @@ void remove_requested_piece(int pieceIndex);
 // Check if given piece index had a request send for
 bool currently_requesting_piece(int pieceIndex);
 
+int get_peer_socket_from_piece_index(int pieceIndex);
+
 #endif

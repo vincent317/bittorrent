@@ -140,3 +140,14 @@ bool currently_requesting_piece(int pieceIndex){
     }
     return false;
 }
+
+int get_peer_socket_from_piece_index(int pieceIndex){
+    struct pairList * t = requestedPieceList;
+    while(t->next != requestedPieceList){
+        if(t->pieceIndex == pieceIndex){
+            return t->sock;
+        }
+        t = t->next;
+    }
+    return -1;   
+}
