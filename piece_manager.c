@@ -123,24 +123,35 @@ void remove_bitfield(int sock){
 }
 */
 
-void piece_manager_send_piece(int sock, int pieceIndex){
-    struct downloadArg * data = malloc(sizeof(struct downloadArg));
+void piece_manager_send_piece(int sock, int pieceIndex, int begin){
+    struct uploadArg * data = malloc(sizeof(struct uploadArg));
     data->sock = sock;
     data->pieceIndex = pieceIndex;
+    data->begin = begin;
 
     pthread_t tid1;
     pthread_create(&tid1, NULL, thread_send_piece, (void *)data); 
 }
 
-void piece_manager_create_download_manager(struct Peer * peer, int pieceIndex, int pieceSize){
-    struct uploadArg * data = malloc(sizeof(struct uploadArg));
+void piece_manager_create_download_manager(struct Peer * peer, int pieceIndex, int pieceSize, int begin){
+    struct downloadArg * data = malloc(sizeof(struct downloadArg));
     data->sock = peer->socket;
     data->pieceIndex = pieceIndex;
     data->msgSize = pieceSize;
-
+    data->begin = begin;
+    
     pthread_t tid1;
     pthread_create(&tid1, NULL, thread_get_piece, (void *)data); 
 
+}
+
+
+int piece_manager_first_download(uint8_t * bitfield){
+    for(int i = 0; i < maxNumPiece; i++){
+        if(!have_piece(myBitfield, i) && have_piece(bitfield, i)){
+            return i;
+        }
+    }
 }
 
 // Current code can request multiple piece to same peer if that piece is among the rarest.
@@ -160,7 +171,11 @@ void piece_manager_initiate_download(){
             while(currentPeer != NULL){
                 // Client is interested and peer is not choking and 
                 // have current look at piece that client don't have
-                if(currentPeer->am_interested == 1 && currentPeer->peer_choking == 0 && have_piece(currentPeer->bitfield, i)){
+                if(!currently_requesting_piece_from(currentPeer->socket) && 
+                    currentPeer->am_interested == 1 && 
+                    currentPeer->peer_choking == 0 && 
+                    have_piece(currentPeer->bitfield, i)){
+                    
                     currentOccur++;
                     if(chance >= 5){
                         currentSmallest = currentPeer;
@@ -169,7 +184,7 @@ void piece_manager_initiate_download(){
                 }
                 currentPeer = currentPeer->next;
             }
-            if(minOccur > currentOccur){
+            if(minOccur > currentOccur && currentOccur != 0){
                 minOccur = currentOccur;
                 smallest = currentSmallest;
                 minPiece = i;
@@ -187,6 +202,13 @@ void piece_manager_initiate_download(){
     }
 }
 
+bool piece_manager_cancel_request(int pieceIndex){
+    if(!is_currently_downloading_piece(pieceIndex)){
+        remove_requested_piece(pieceIndex);        
+        return true;
+    }
+    return false;
+}
 
 void piece_manager_check_upload_download(){
     struct timeval waitingTime;
@@ -293,6 +315,7 @@ void piece_manager_check_upload_download(){
             char buffer[100];
             read(currentElem->sock, buffer, 19);
             int currentSocket = currentElem->sock;
+            int peerSocket = currentElem->peerSock;
             int currentPieceIndex = currentElem->pieceIndex;
 
             if(strcmp(buffer, "transmit completed") == 0){
@@ -304,6 +327,16 @@ void piece_manager_check_upload_download(){
                 remove_upload_pipe(currentSocket);
                 
                 // TODO: GET THE PEER SOCKET TO GET THE PEER AND LET THE PEER MANAGER KNOW
+                if(peerSocket != -1){
+                    struct Peer * currentPeer = get_root_peer();
+                    while(currentPeer != NULL){
+                        if(currentPeer->socket == peerSocket){
+                            peer_manager_inform_disconnect(currentPeer);
+                            break;
+                        }
+                        currentPeer = currentPeer->next;
+                    }
+                }
             }
             else{
                 // Unknow message
@@ -356,16 +389,16 @@ bool have_all_piece(){
 
 
 void * thread_send_piece(void *vargp){
-    struct downloadArg * data = (struct downloadArg *) vargp;
+    struct uploadArg * data = (struct uploadArg *) vargp;
     int sock = data->sock;
     int pieceIndex = data->pieceIndex;
-
-    pthread_t threadID = pthread_self();
+    int begin = data->begin;
+    
     // fd[0] - read
     // fd[1] - write
     int fd[2];
     pipe(fd);
-    add_upload_pipe(fd[1], pieceIndex);
+    add_upload_pipe(fd[1], pieceIndex, sock);
 
     // TODO: Call the function to download from download manager
 
@@ -375,10 +408,11 @@ void * thread_send_piece(void *vargp){
 
 
 void * thread_get_piece(void *vargp){
-    struct uploadArg * data = (struct uploadArg *) vargp;
+    struct downloadArg * data = (struct downloadArg *) vargp;
     int sock = data->sock;
     int pieceIndex = data->pieceIndex;
     int msgSize = data->msgSize;
+    int begin = data->begin;
 
     pthread_t threadID = pthread_self();
     // fd[0] - read
@@ -386,7 +420,7 @@ void * thread_get_piece(void *vargp){
     int fd[2];
     pipe(fd);
 
-    add_download_pipe(fd[1], pieceIndex);
+    add_download_pipe(fd[1], pieceIndex, sock);
 
     // TODO: Call the function to download from download manager
 
