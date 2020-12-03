@@ -5,19 +5,10 @@
 #include <stdint.h>
 #include "torrent_runtime.h"
 
-/*
-    Questions:
-    1. What is the period function referring in "Every 50ms, the peer manager will call the “periodic” functions for
-     the CLI, Piece Manager, and Torrent Runtime"
-    5. Do we only need to broadcast the have message once we got a piece of data? Do we need to broadcast other things
-      like choke or interested? (only the have and the request and choking and interested)
-*/
-
-//Linked list recommended
 struct Peer{
     int socket;
-    uint8_t port;
-    uint8_t address[16];
+    uint16_t port; //Also in big endian format
+    uint8_t address[4]; //The corresponding 64bits version is in big endian format. 
     uint8_t am_choking, am_interested, peer_choking, peer_interested;
     uint64_t download_rate; 
     uint8_t *bitfield; //a dynamically allocated array, 
