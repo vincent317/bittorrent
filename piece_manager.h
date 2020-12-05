@@ -42,6 +42,10 @@ struct uploadArg{
     int begin;
 };
 
+struct OpenPeer{
+    struct Peer * peer;
+};
+
 /////////////////////////////////////////////////////////////////////////
 ////////////////////// METHOD OTHER FILE MAY  CALL //////////////////////
 /////////////////////////////////////////////////////////////////////////
@@ -105,7 +109,7 @@ bool piece_manager_cancel_request(int pieceIndex);
 //  - for upload pipe, let the peer manager know it can now listen to the upload socket
 //          NEED: a function in peer manager
 // Also need a function in peer manager to let the peer manager know a socket has disconnected
-void piece_manager_check_upload_download();
+void piece_manager_periodic();
 
 
 /////////////////////////////////////////////////////////////////////////
