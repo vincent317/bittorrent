@@ -146,13 +146,6 @@ void piece_manager_create_download_manager(struct Peer * peer, int pieceIndex, i
 }
 
 
-int piece_manager_first_download(uint8_t * bitfield){
-    for(int i = 0; i < maxNumPiece; i++){
-        if(!have_piece(myBitfield, i) && have_piece(bitfield, i)){
-            return i;
-        }
-    }
-}
 
 // Current code can request multiple piece to same peer if that piece is among the rarest.
 void piece_manager_initiate_download(){
@@ -239,14 +232,14 @@ void piece_manager_check_upload_download(){
     currentElem = downloadPipeList->next;
     while(currentElem != downloadPipeList){
         if(FD_ISSET(currentElem->sock, &downloadPipeSet)){
-            char buffer[100];
-            read(currentElem->sock, buffer, 19);
-            buffer[18] = '\0';
+            char buffer[2];
+            read(currentElem->sock, buffer, 1);
+            buffer[1] = '\0';
 
             int currentSocket = currentElem->sock;
             int currentPieceIndex = currentElem->pieceIndex;
 
-            if(strcmp(buffer, "download completed") == 0){
+            if(strcmp(buffer, "0") == 0){
                 set_have_piece(myBitfield, currentPieceIndex);
                 int peerSocket = get_peer_socket_from_piece_index(currentPieceIndex);
                 currentElem = currentElem->prev;
@@ -264,7 +257,7 @@ void piece_manager_check_upload_download(){
                     }
                 }
             }
-            else if(strcmp(buffer, "peer connect error") == 0){
+            else if(strcmp(buffer, "1") == 0){
                 int peerSocket = get_peer_socket_from_piece_index(currentPieceIndex);
                 currentElem = currentElem->prev;
                 remove_download_pipe(currentSocket);
@@ -318,11 +311,11 @@ void piece_manager_check_upload_download(){
             int peerSocket = currentElem->peerSock;
             int currentPieceIndex = currentElem->pieceIndex;
 
-            if(strcmp(buffer, "transmit completed") == 0){
+            if(strcmp(buffer, "0") == 0){
                 currentElem = currentElem->prev;
                 remove_upload_pipe(currentSocket);
             }
-            else if(strcmp(buffer, "peer connect error") == 0){
+            else if(strcmp(buffer, "1") == 0){
                 currentElem = currentElem->prev;
                 remove_upload_pipe(currentSocket);
                 

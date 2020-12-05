@@ -86,12 +86,6 @@ void piece_manager_send_piece(int sock, int pieceIndex, int begin);
 // NOTE: will add pipe to a list called downloadPipe
 void piece_manager_create_download_manager(struct Peer * peer, int pieceIndex, int pieceSize, int begin);
 
-// Call when first startup and have no pieces download yet.
-// For the very first peer that reponse with the bitfield and is unchoking client,
-// call this function and pass in the bitfield. Will return the pieceIndex of 
-// the piece to request from that peer.
-int piece_manager_first_download(uint8_t * bitfield);
-
 // Peer manager call to find what piece to request next and from whom.
 // request - should be initially point to NULL
 // Method will allocate data
