@@ -36,10 +36,11 @@ void init_requested_piece(){
 
 
 // add pipe to downloadList
-void add_download_pipe(int sock, int pieceIndex){
+void add_download_pipe(int sock, int pieceIndex, int peerSock){
     struct pairList * v = malloc(sizeof(struct pairList));
     v->sock = sock;
     v->pieceIndex = pieceIndex;
+    v->peerSock = peerSock;
 
     struct pairList * pos = downloadintList->prev;
     v->next = pos->next;
@@ -68,11 +69,22 @@ struct pairList * get_download_pipe(){
     return downloadintList;
 }
 
+bool is_currently_downloading_piece(int pieceIndex){
+    struct pairList * t = downloadintList;
+    while(t->next != downloadintList){
+        if(t->pieceIndex == pieceIndex){
+            return true;
+        }
+    }
+    return false;
+}
+
 // add pipe to uploadList
-void add_upload_pipe(int sock, int pieceIndex){
+void add_upload_pipe(int sock, int pieceIndex, int peerSock){
     struct pairList * v = malloc(sizeof(struct pairList)); 
     v->sock = sock;
     v->pieceIndex = pieceIndex;
+    v->peerSock = peerSock;
     
     struct pairList * pos = uploadintList->prev;
     v->next = pos->next;
@@ -105,6 +117,7 @@ void add_requested_piece(int sock, int pieceIndex){
     struct pairList * v = malloc(sizeof(struct pairList));
     v->sock = sock;
     v->pieceIndex = pieceIndex;
+    v->peerSock = sock;
     
 
     struct pairList * pos = requestedPieceList->prev;
@@ -139,4 +152,26 @@ bool currently_requesting_piece(int pieceIndex){
         t = t->next;
     }
     return false;
+}
+
+bool currently_requesting_piece_from(int sock){
+    struct pairList * t = requestedPieceList;
+    while(t->next != requestedPieceList){
+        if(t->sock == sock){
+            return true;
+        }
+        t = t->next;
+    }
+    return false;
+}
+
+int get_peer_socket_from_piece_index(int pieceIndex){
+    struct pairList * t = requestedPieceList;
+    while(t->next != requestedPieceList){
+        if(t->pieceIndex == pieceIndex){
+            return t->sock;
+        }
+        t = t->next;
+    }
+    return -1;   
 }

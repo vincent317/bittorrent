@@ -31,17 +31,19 @@ struct peerPiece{
 struct downloadArg{
     int sock;
     int pieceIndex;
+    int msgSize;
+    int begin;
 };
 
 // Struct to pass argument to upload thread
 struct uploadArg{
     int sock;
     int pieceIndex;
-    int msgSize;
+    int begin;
 };
 
 /////////////////////////////////////////////////////////////////////////
-////////////////////// METHOD OTHER FILE WILL CALL //////////////////////
+////////////////////// METHOD OTHER FILE MAY  CALL //////////////////////
 /////////////////////////////////////////////////////////////////////////
 
 
@@ -51,6 +53,9 @@ void piece_manager_startup(Torrent * torrent);
 
 // Return the client bitfield
 uint8_t * piece_manager_get_my_bitfield();
+
+// Return the client bitfield's size
+int piece_manager_get_my_bitfield_size();
 
 /*
 // Give the sock and bitfield of the client that interested 
@@ -73,22 +78,29 @@ void remove_bitfield(int sock);
 // the piece with the pieceHash to sock
 // Will create the Upload Manager
 // NOTE: will add pipe to list called uploadPipe
-void piece_manager_send_piece(int sock, int pieceIndex);
+void piece_manager_send_piece(int sock, int pieceIndex, int begin);
 
 // Peer manager call this func to tell piece manager to get the piece
 // from the sock
 // Will create the thread for the Download Manager
 // NOTE: will add pipe to a list called downloadPipe
-void piece_manager_get_piece(int sock, int size, int pieceIndex);
+void piece_manager_create_download_manager(struct Peer * peer, int pieceIndex, int pieceSize, int begin);
 
+// Call when first startup and have no pieces download yet.
+// For the very first peer that reponse with the bitfield and is unchoking client,
+// call this function and pass in the bitfield. Will return the pieceIndex of 
+// the piece to request from that peer.
+int piece_manager_first_download(uint8_t * bitfield);
 
 // Peer manager call to find what piece to request next and from whom.
 // request - should be initially point to NULL
 // Method will allocate data
 // Will follow rarest first 
 // May give NULL for peer argument since no one have right condition
-void piece_manager_request_piece();
+void piece_manager_initiate_download();
 
+// Cancel the request
+bool piece_manager_cancel_request(int pieceIndex);
 
 // Periodic call by peer manager to listen to the pipe make
 // from upload and download
