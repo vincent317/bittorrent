@@ -3,6 +3,7 @@
 
 #include <stdlib.h>
 #include <stdint.h>
+#include <time.h>
 #include "torrent_runtime.h"
 
 struct Peer{
@@ -12,6 +13,8 @@ struct Peer{
     uint8_t am_choking, am_interested, peer_choking, peer_interested;
     uint64_t download_rate; 
     uint8_t *bitfield; //a dynamically allocated array, 
+    int handshaked; //whether this peer has been handshaked
+    struct timeval last_message_time;
     struct Peer *next;
 };
 
@@ -32,5 +35,8 @@ struct Peer *get_peer_from_socket(int socket);
 
 //starts the peer manager
 int start_peer_manager(Torrent *torrent);
+
+//Returns 0 if theres no such peer; 1 otherwise
+int peer_manager_inform_disconnect(struct Peer *peer);
 
 #endif
