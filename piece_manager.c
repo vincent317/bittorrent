@@ -247,7 +247,7 @@ void piece_manager_check_upload_download(){
                     struct Peer * currentPeer = get_root_peer();
                     while(currentPeer != NULL){
                         if(currentPeer->socket == peerSocket){
-                            peer_manager_download_complete(currentPeer);
+                            peer_manager_upload_download_complete(0, currentPeer);
                             break;
                         }
                         currentPeer = currentPeer->next;
