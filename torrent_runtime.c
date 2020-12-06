@@ -2,6 +2,7 @@
 #include "bencode.h"
 #include "peer_manager.h"
 
+Torrent* g_torrent = NULL;
 
 void reset_torrent(Torrent* torrent) {
     torrent->hash_str = NULL;
@@ -237,10 +238,18 @@ TorrentRuntime* create_torrent_runtime(const char* torrent_path, const char* see
     
     // TODO: Handle Seed Path
 
+    if (g_torrent != NULL) {
+        printf("error: already downloading torrent, cannot download another\n");
+        return;
+    }
+
     // initialize data structures
     Torrent* torrent = (Torrent*) malloc(sizeof(Torrent));
     TorrentRuntime* runtime = (TorrentRuntime*) malloc(sizeof(TorrentRuntime));
     runtime->torrent = torrent;
+
+    // Update global torrent pointer
+    g_torrent = torrent;
 
     // read the .torrent file into memory
     FILE* metainfo_stream = fopen(torrent_path, "r");

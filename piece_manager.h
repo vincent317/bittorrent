@@ -16,7 +16,7 @@
 #include "shared.h"
 #include "torrent_runtime.h"
 #include "peer_manager.h"
-
+#include "upload_download_manager.h"
 
 struct requestPiece{
     int index;              // Request piece's index
@@ -83,10 +83,10 @@ void remove_bitfield(int sock);
 // NOTE: will add pipe to list called uploadPipe
 void piece_manager_send_piece(int sock, int pieceIndex, int begin);
 
-// Peer manager call this func to tell piece manager to get the piece
-// from the sock
-// Will create the thread for the Download Manager
-// NOTE: will add pipe to a list called downloadPipe
+/*
+    The Peer Manger calls this function to begin reading a piece from a peer's socket.
+    This occurs after a peer sends a "piece" message.
+*/
 void piece_manager_create_download_manager(struct Peer * peer, int pieceIndex, int pieceSize, int begin);
 
 // Call when first startup and have no pieces download yet.

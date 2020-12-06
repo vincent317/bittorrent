@@ -37,13 +37,11 @@ void piece_manager_startup(Torrent * torrent){
     // Bitfield - 1 represent have, 0 represent don't have
     // Part of the Path to the folder that hold the pieces download so far
     
-    char * torrentID = torrent->hash_str;
- 
     char folderPath[100];
     memset(folderPath, 0, sizeof(char) * 100);
     folderPath[0] = '\0';
     strcat(folderPath, "./.torrent_data/");
-    strcat(folderPath, torrentID);
+    strcat(folderPath, torrent->hash_str);
    // strcat(folderPath, "/");
 
     
@@ -74,57 +72,15 @@ void piece_manager_startup(Torrent * torrent){
     }
 }
 
-
-uint8_t * piece_manager_get_my_bitfield(){
+uint8_t * piece_manager_get_my_bitfield() {
     return myBitfield;
 }
 
-int piece_manager_get_my_bitfield_size(){
+int piece_manager_get_my_bitfield_size() {
     return (int) ceil((double) maxNumPiece / 8);
 }
 
-
-/*
-void add_bitfield(int sock, uint8_t * bitfield, int bitfieldSize){
-    struct peerPiece * v = malloc(sizeof(struct peerPiece));
-    v->socket = sock;
-    v->bitfield = malloc(bitfieldSize);
-    memcpy(v->bitfield, bitfield, bitfieldSize);
-
-    struct peerPiece * pos = peerBitfieldList->prev;
-    v->next = pos->next;
-    pos->next->prev = v;
-    pos->next = v;
-    v->prev = pos;
-}
-
-void update_bitfield(int sock, int pieceIndex){
-    struct peerPiece * t = peerBitfieldList;
-    while(t->next != peerBitfieldList){
-        if(t->socket == sock){
-            setHavePiece(t->bitfield, pieceIndex);
-            break;
-        }
-        t = t->next;
-    }
-}
-
-void remove_bitfield(int sock){
-    struct peerPiece * t = peerBitfieldList;
-    while(t->next != peerBitfieldList){
-        if(t->socket == sock){
-            t->prev->next = t->next;
-            t->next->prev = t->prev;
-            free(t->bitfield);
-            free(t);
-            break;
-        }
-        t = t->next;
-    }
-}
-*/
-
-void piece_manager_send_piece(int sock, int pieceIndex, int begin){
+void piece_manager_send_piece(int sock, int pieceIndex, int begin) {
     struct uploadArg * data = malloc(sizeof(struct uploadArg));
     data->sock = sock;
     data->pieceIndex = pieceIndex;
@@ -134,18 +90,51 @@ void piece_manager_send_piece(int sock, int pieceIndex, int begin){
     pthread_create(&tid1, NULL, thread_send_piece, (void *)data); 
 }
 
-void piece_manager_create_download_manager(struct Peer * peer, int pieceIndex, int pieceSize, int begin) {
-    struct downloadArg * data = malloc(sizeof(struct downloadArg));
-    data->sock = peer->socket;
-    data->pieceIndex = pieceIndex;
-    data->msgSize = pieceSize;
-    data->begin = begin;
-    
-    pthread_t tid1;
-    pthread_create(&tid1, NULL, thread_get_piece, (void *)data); 
+/*
+    This function will initiate an upload/download by creating
+    a new thread and executing "begin_upload_download" - it will
+    also create an I/O pipe which will be the primary method of
+    communication between the subordiante threead & main thread.
+*/
+void piece_manager_begin_upload_download(
+    int is_upload,
+    struct Peer* peer,
+    int pieceIndex,
+    int begin,
+    int len
+) {
+    // Create fd's for I/O with the subordinate (0=read, 1=write)
+    int fd[2]; // 0=read, 1=write
+    pipe(fd);
 
-}
+    // Malloc args for the upload/download manager
+    UploadDownloadManagerArgs* args = malloc(sizeof(UploadDownloadManagerArgs));
+    args->is_upload = is_upload;
+    args->write_fd = fd[1];
+    args->peer = peer;
+    args->pieceIndex = pieceIndex;
+    args->begin = begin;
+    args->len = len;
 
+    // Store the descriptor
+    add_download_pipe(fd[0], pieceIndex, peer->socket);
+
+    // Create a thread for the process
+    pthread_t tid;
+    pthread_create(&tid, NULL, begin_upload_download, (void*) args);
+};
+
+void piece_manager_create_download_manager(
+    struct Peer* peer, int pieceIndex, int pieceSize, int begin
+) {
+    piece_manager_begin_upload_download(0, peer, pieceIndex, begin, pieceSize);
+};
+
+void piece_manager_create_upload_manager(
+    struct Peer* peer, int pieceIndex, int pieceSize, int begin
+) {
+    piece_manager_begin_upload_download(1, peer, pieceIndex, begin, pieceSize);
+};
 
 int piece_manager_first_download(uint8_t * bitfield){
     for(int i = 0; i < maxNumPiece; i++){
@@ -406,30 +395,6 @@ void * thread_send_piece(void *vargp){
     close(fd[1]);
     free(vargp);
 }
-
-
-void * thread_get_piece(void *vargp){
-    struct downloadArg * data = (struct downloadArg *) vargp;
-    int sock = data->sock;
-    int pieceIndex = data->pieceIndex;
-    int msgSize = data->msgSize;
-    int begin = data->begin;
-
-    pthread_t threadID = pthread_self();
-    // fd[0] - read
-    // fd[1] - write
-    int fd[2];
-    pipe(fd);
-
-    add_download_pipe(fd[1], pieceIndex, sock);
-
-    // TODO: Call the function to download from download manager
-
-    close(fd[1]);
-    free(vargp);
-}
-
-
 
 /*
 int main(int argc, char *argv[]){
