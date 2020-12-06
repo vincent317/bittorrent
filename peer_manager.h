@@ -73,6 +73,6 @@ int peer_manager_begin_download(struct Peer* peer, int pieceIndex);
     Peer.curr_dl / Peer.curr_up / Peer.curr_dl_piece / Peer.curr_up_piece
     fields and any choking algorithm.
 */
-void peer_manager_upload_download_complete(uint8_t is_upload, struct Peer* peer)
+void peer_manager_upload_download_complete(uint8_t is_upload, struct Peer* peer);
 
 #endif
