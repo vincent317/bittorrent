@@ -291,17 +291,18 @@ TorrentRuntime* create_torrent_runtime(const char* torrent_path, const char* see
         fp = (TorrentFile*) fp->next_file;
     }
 
-    start_peer_manager(torrent);
+    start_peer_manager(torrent); // this function should consume all process time
+
+    printf("Program execution complete. Terminating.\n");
 
     free(piece_size);
     free(torrent_size);
     fclose(metainfo_stream);
     free(metainfo);
 
-    
-
-    
-    
     return runtime;
 };
 
+void torrent_runtime_periodic() {
+    // TODO
+};

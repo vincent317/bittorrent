@@ -1,7 +1,5 @@
 #include <stdlib.h>
 #include <stdint.h>
-#include "torrent_runtime.h"
-#include "peer_manager.h"
 #include <curl/curl.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -9,15 +7,26 @@
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <poll.h>
-#include "shared.h"
 #include <time.h>
+#include "shared.h"
+#include "cli.h"
+#include "torrent_runtime.h"
+#include "peer_manager.h"
+#include "piece_manager.h"
 
 /*
  * Periodic functions I need to do:
- * 1. CLI, piece manager (piece_manager_check_upload_download() ?), & torrent runtime.
+ * 1. CLI, piece manager, torrent runtime
  * 2. Choking algorithm
  * 3. Send keep alive messages to peers.
 */
+
+// TODO: Call this function every 500ms
+void handle_periodic() {
+    piece_manager_periodic();
+    torrent_runtime_periodic();
+    cli_periodic();
+};
 
 struct TrackerResponse{
     uint8_t interval;

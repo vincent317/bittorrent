@@ -5,10 +5,6 @@
 #include "torrent_runtime.h"
 #include "shared.h"
 
-//struct peerPiece * peerBitfieldList;
-
-
-
 uint8_t * myBitfield;
 int maxNumPiece;
 
@@ -78,16 +74,6 @@ uint8_t * piece_manager_get_my_bitfield() {
 
 int piece_manager_get_my_bitfield_size() {
     return (int) ceil((double) maxNumPiece / 8);
-}
-
-void piece_manager_send_piece(int sock, int pieceIndex, int begin) {
-    struct uploadArg * data = malloc(sizeof(struct uploadArg));
-    data->sock = sock;
-    data->pieceIndex = pieceIndex;
-    data->begin = begin;
-
-    pthread_t tid1;
-    pthread_create(&tid1, NULL, thread_send_piece, (void *)data); 
 }
 
 /*
@@ -364,7 +350,6 @@ void convert_name_to_hash(uint8_t * pieceHash, char * pieceName, int pieceNameLe
     }
 }
 
-
 // Check if all pieces had been downloaded
 bool have_all_piece(){
     bool result = true;
@@ -376,62 +361,6 @@ bool have_all_piece(){
     return result;
 }
 
-
-
-void * thread_send_piece(void *vargp){
-    struct uploadArg * data = (struct uploadArg *) vargp;
-    int sock = data->sock;
-    int pieceIndex = data->pieceIndex;
-    int begin = data->begin;
-    
-    // fd[0] - read
-    // fd[1] - write
-    int fd[2];
-    pipe(fd);
-    add_upload_pipe(fd[1], pieceIndex, sock);
-
-    // TODO: Call the function to download from download manager
-
-    close(fd[1]);
-    free(vargp);
-}
-
-/*
-int main(int argc, char *argv[]){
-
-    startup();
-
-    uint8_t c[4];
-    memset(c, 0, sizeof(char) * 4);
-
-    set_have_piece(c, 19);
-    set_have_piece(c, 0);
-    set_have_piece(c, 12);
-    set_have_piece(c, 5);
-    set_have_piece(c, 30);
-
-    printf("%d %d %d %d\n", c[0], c[1], c[2], c[3]);
-
-    for(int i = 0; i < 32; i++){
-        bool a = havePiece(c, i);
-        printf("%d %d\n", i, a);
-
-    }
-
-    set_have_piece(myBitfield, 0);
-    set_have_piece(myBitfield, 1);
-    set_have_piece(myBitfield, 2);
-    set_have_piece(myBitfield, 3);
-    set_have_piece(myBitfield, 4);
-    set_have_piece(myBitfield, 5);
-    set_have_piece(myBitfield, 6);
-    set_have_piece(myBitfield, 7);
-    set_have_piece(myBitfield, 8);
-    set_have_piece(myBitfield, 9);
-    set_have_piece(myBitfield, 10);
-    set_have_piece(myBitfield, 11);
-    printf("%d", have_all_piece());
-
-}
-*/
-
+void piece_manager_periodic() {
+    // TODO: All periodic code here
+};

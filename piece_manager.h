@@ -30,25 +30,12 @@ struct peerPiece{
     int socket;                 // Socket of peer that have the bitfield
 };
 
-// Struct to pass argument to download thread
-struct downloadArg{
-    int sock;
-    int pieceIndex;
-    int msgSize;
-    int begin;
-};
-
-// Struct to pass argument to upload thread
-struct uploadArg{
-    int sock;
-    int pieceIndex;
-    int begin;
-};
-
 /////////////////////////////////////////////////////////////////////////
 ////////////////////// METHOD OTHER FILE MAY  CALL //////////////////////
 /////////////////////////////////////////////////////////////////////////
 
+// A function called every 500ms for perioid tasks
+void piece_manager_periodic();
 
 // Piece manager look through the file system to see which 
 // pieces the client already has.
@@ -59,29 +46,6 @@ uint8_t * piece_manager_get_my_bitfield();
 
 // Return the client bitfield's size
 int piece_manager_get_my_bitfield_size();
-
-/*
-// Give the sock and bitfield of the client that interested 
-// in and can receive data from. The bitfield tell which piece
-// the peer have
-// Should call once when selecting a client
-void add_bitfield(int sock, uint8_t * bitfield, int bitfieldSize);
-
-// Peer manager call to update the bitfield of peer with the given socket
-// Used when the peer manager receive a HAVE message.
-void update_bitfield(int sock, int pieceIndex);
-
-// Remove bitfield from list. Meaning client will no longer 
-// try to request any piece from the peer with the given socket.
-// Modify the list of peer to check
-void remove_bitfield(int sock);
-*/
-
-// Peer manager call this func to tell piece manager to send
-// the piece with the pieceHash to sock
-// Will create the Upload Manager
-// NOTE: will add pipe to list called uploadPipe
-void piece_manager_send_piece(int sock, int pieceIndex, int begin);
 
 /*
     The Peer Manger calls this function to begin reading a piece from a peer's socket.
