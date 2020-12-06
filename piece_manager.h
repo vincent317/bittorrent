@@ -80,29 +80,7 @@ bool piece_manager_cancel_request(int pieceIndex);
 // Also need a function in peer manager to let the peer manager know a socket has disconnected
 void piece_manager_check_upload_download();
 
-
-/////////////////////////////////////////////////////////////////////////
-//////////////////////////// HELPER /////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////
-
-
-// Convert pieceHash to 0x folder name
-void convert_hash_to_name(uint8_t * pieceHash, char * folderName);
-
-
-// PieceName is a string of 40 character, where every 2 character represent a byte in hex value
-// So convert to piece hash which has 20 byte
-void convert_name_to_hash(uint8_t * pieceHash, char * pieceName, int pieceNameLen);
-
 // Check if all pieces had been downloaded
 bool have_all_piece();
-
-// sendPiece will call threadSendPiece to make the thread for the upload manager
-void * thread_send_piece(void *vargp);
-
-
-// getPiece will call threadGetPiece to make the thread for the upload manager
-void * thread_get_piece(void *vargp);
-
 
 #endif

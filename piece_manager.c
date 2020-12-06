@@ -53,9 +53,14 @@ void piece_manager_startup(Torrent * torrent){
                 memcpy(pieceName, file->d_name, i);
                 pieceName[i] = '\0';
 
+                if (strlen(pieceName) != 40) {
+                    printf("ERROR: Corrupted piece cache. Piece length is not 40, name: '%s'!", pieceName);
+                    exit(1);
+                };
+
                 // Convert pieceHash to byte
                 uint8_t pieceHash[20];
-                convert_name_to_hash(pieceHash, pieceName, strlen(pieceName));
+                hexstr_to_sha1(pieceHash, pieceName);
 
                 // Get piece index from hash and set bitfield
                 int pieceIndex = torrent_hash_to_piece_index(pieceHash);
@@ -326,29 +331,6 @@ void piece_manager_check_upload_download(){
     
 }
 
-
-void convert_hash_to_name(uint8_t * pieceHash, char * folderName){
-    for(int i = 0; i < 20; i++){
-        sprintf(folderName + 2 * i, "%02x", pieceHash[i]);
-    }
-    folderName[40] = '\0';
-}
-
-
-void convert_name_to_hash(uint8_t * pieceHash, char * pieceName, int pieceNameLen){
-    int pos;
-    uint8_t val;
-    int i = 0;
-    for(pos = 0; pos < pieceNameLen; pos += 2){
-        char p[3];
-        memcpy(p, pieceName + pos, 2);
-        p[2] = '\0';
-        char * endPtr;
-        val = (uint8_t) strtoul(p, &endPtr, 16);
-        pieceHash[i] = val;
-        i++;
-    }
-}
 
 // Check if all pieces had been downloaded
 bool have_all_piece(){
