@@ -35,6 +35,8 @@ typedef struct {
     TorrentFile* files;
 } Torrent;
 
+Torrent* g_torrent;
+
 /*
     A TorrentRuntime structure stores date related to the runtime or
     execution of a particular torrent.
