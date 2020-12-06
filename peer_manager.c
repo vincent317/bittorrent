@@ -45,40 +45,6 @@ struct Peer *head_peer = NULL;
 int number_of_peers = 0;
 struct pollfd *peers_sockets;
 
-
-int read_n_bytes(void *buffer, int bytes_expected, int read_socket){
-    int bytes_received = 0;
-    int temp = 0;
-
-    while(bytes_received < bytes_expected){
-        temp = recv(read_socket, buffer + bytes_received, bytes_expected-bytes_received, 0);
-        if(temp == -1){
-            fprintf(stderr, "read failed\n");
-            return -1;
-        }
-        bytes_received += temp;
-    }
-
-	return bytes_received;
-}
-
-int send_n_bytes(void *buffer, int bytes_expected, int send_socket){
-    int bytes_sent = 0;
-    int temp = 0;
-
-    while(bytes_sent < bytes_expected){
-        temp = send(send_socket, buffer + bytes_sent, bytes_expected-bytes_sent, 0);
-        if(temp == -1){
-            fprintf(stderr, "send failed\n");
-            return -1;
-        }
-        bytes_sent += temp;
-    }
-
-	return bytes_sent;
-}
-
-
 size_t write_func(void *ptr, size_t size, size_t nmemb, char **write_stream){
     bencode_t tracker_response_bencode;
     bencode_init(&tracker_response_bencode, ptr, size*nmemb);   

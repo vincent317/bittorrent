@@ -13,6 +13,9 @@
 #include <math.h>
 #include "hash.h"
 
+int read_n_bytes(void* buffer, int bytes, int sock);
+int send_n_bytes(void* buffer, int bytes, int sock);
+
 /*
     Converts a SHA-1 hash (20 bytes) into a string
     The returned string must be free'd
@@ -32,7 +35,6 @@ char* calculateSize(uint64_t size);
 // EX: bitfield: 00000000 pieceIndex: 5
 // Change bitfield to 00001000
 void set_have_piece(uint8_t * bitfield, int pieceIndex);
-
 
 // Check if the given bitfield have the given piece index
 bool have_piece(uint8_t * bitfield, int pieceIndex);
