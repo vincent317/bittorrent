@@ -34,20 +34,19 @@ void init_requested_piece(){
     requestedPieceList->prev = requestedPieceList;
 }
 
-
-// add pipe to downloadList
-void add_download_pipe(int sock, int pieceIndex, int peerSock){
+// Store the fd for I/O with subordinate upload/download threads
+void record_upload_download_pipe(int is_upload, int sock, int pieceIndex, int peerSock) {
     struct pairList * v = malloc(sizeof(struct pairList));
     v->sock = sock;
     v->pieceIndex = pieceIndex;
     v->peerSock = peerSock;
 
-    struct pairList * pos = downloadintList->prev;
+    struct pairList * pos = (is_upload ? uploadintList : downloadintList)->prev;
     v->next = pos->next;
     pos->next->prev = v;
     pos->next = v;
     v->prev = pos;
-}
+};
 
 // Remove pipe to downloadList
 void remove_download_pipe(int sock){
@@ -77,20 +76,6 @@ bool is_currently_downloading_piece(int pieceIndex){
         }
     }
     return false;
-}
-
-// add pipe to uploadList
-void add_upload_pipe(int sock, int pieceIndex, int peerSock){
-    struct pairList * v = malloc(sizeof(struct pairList)); 
-    v->sock = sock;
-    v->pieceIndex = pieceIndex;
-    v->peerSock = peerSock;
-    
-    struct pairList * pos = uploadintList->prev;
-    v->next = pos->next;
-    pos->next->prev = v;
-    pos->next = v;
-    v->prev = pos;
 }
 
 // Remove pipe to uploadList

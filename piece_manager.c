@@ -103,7 +103,7 @@ void piece_manager_begin_upload_download(
     args->len = len;
 
     // Store the descriptor
-    add_download_pipe(fd[0], pieceIndex, peer->socket);
+    record_upload_download_pipe(is_upload, fd[0], pieceIndex, peer->socket);
 
     // Create a thread for the process
     pthread_t tid;
