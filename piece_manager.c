@@ -1,3 +1,4 @@
+
 #include "piece_manager.h"
 #include "piece_manager_data.h"
 #include "peer_manager.h"
@@ -133,7 +134,7 @@ void piece_manager_send_piece(int sock, int pieceIndex, int begin){
     pthread_create(&tid1, NULL, thread_send_piece, (void *)data); 
 }
 
-void piece_manager_create_download_manager(struct Peer * peer, int pieceIndex, int pieceSize, int begin){
+void piece_manager_create_download_manager(struct Peer * peer, int pieceIndex, int pieceSize, int begin) {
     struct downloadArg * data = malloc(sizeof(struct downloadArg));
     data->sock = peer->socket;
     data->pieceIndex = pieceIndex;

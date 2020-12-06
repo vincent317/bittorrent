@@ -13,6 +13,9 @@
 #include <sys/types.h>
 #include <limits.h>
 #include <sys/select.h>
+#include "shared.h"
+#include "torrent_runtime.h"
+#include "peer_manager.h"
 
 
 struct requestPiece{

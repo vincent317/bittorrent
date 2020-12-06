@@ -9,7 +9,7 @@
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <poll.h>
-#include <shared.h>
+#include "shared.h"
 #include <time.h>
 
 /*
@@ -384,7 +384,7 @@ int start_peer_manager(Torrent *torrent){
                             }else{
                                 remove_from_peer_linked_list(peer);
                             }
-                        }else if(ID == ){
+                        // }else if(ID == ){
 
                         }
                     }else{
