@@ -20,5 +20,6 @@ void* begin_upload_download(void* vargp) {
         create_download_manager(args);
     }
 
+    free(vargp);
     return NULL;
 };
