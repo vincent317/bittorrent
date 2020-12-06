@@ -37,7 +37,7 @@ uint8_t get_piece_length();
 struct Peer *get_am_unchoked();
 
 //update the download rate for the peer, the peer manager doesnt call it
-int update_download_rate(struct Peer *peer, uint64_t download_rate);
+void update_download_rate(struct Peer *peer, uint64_t download_rate);
 
 //returns the peer from the given socket
 struct Peer *get_peer_from_socket(int socket);

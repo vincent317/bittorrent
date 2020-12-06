@@ -22,6 +22,10 @@ int send_n_bytes(void* buffer, int bytes, int sock);
 */
 const char* sha1_to_hexstr(uint8_t* hash);
 
+
+// Converts a string into a 20-byte hash
+void hexstr_to_sha1(uint8_t* dst_hash, char* hex_str);
+
 /*
     Converts a size in bytes to a string
     The returned string must be free'd

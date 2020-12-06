@@ -48,20 +48,18 @@ void record_upload_download_pipe(int is_upload, int sock, int pieceIndex, int pe
     v->prev = pos;
 };
 
-// Remove pipe to downloadList
-void remove_download_pipe(int sock){
-    struct pairList * t = downloadintList;
-    while(t->next != downloadintList){
+void remove_upload_download_pipe(int is_upload, int sock) {
+    struct pairList * t = is_upload ? uploadintList : downloadintList;
+    while(t->next != uploadintList){
         if(t->sock == sock){
             t->prev->next = t->next;
             t->next->prev = t->prev;
             free(t);
-
             break;
         }
         t = t->next;
     }
-}
+};
 
 // Return the list of download pipe
 struct pairList * get_download_pipe(){
@@ -76,20 +74,6 @@ bool is_currently_downloading_piece(int pieceIndex){
         }
     }
     return false;
-}
-
-// Remove pipe to uploadList
-void remove_upload_pipe(int sock){
-    struct pairList * t = uploadintList;
-    while(t->next != uploadintList){
-        if(t->sock == sock){
-            t->prev->next = t->next;
-            t->next->prev = t->prev;
-            free(t);
-            break;
-        }
-        t = t->next;
-    }
 }
 
 // Return the list of upload pipe

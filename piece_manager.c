@@ -231,7 +231,7 @@ void piece_manager_check_upload_download(){
                 set_have_piece(myBitfield, currentPieceIndex);
                 int peerSocket = get_peer_socket_from_piece_index(currentPieceIndex);
                 currentElem = currentElem->prev;
-                remove_download_pipe(currentSocket);
+                remove_upload_download_pipe(0, currentSocket);
                 remove_requested_piece(currentPieceIndex);
 
                 if(peerSocket != -1){
@@ -248,7 +248,7 @@ void piece_manager_check_upload_download(){
             else if(strcmp(buffer, "peer connect error") == 0){
                 int peerSocket = get_peer_socket_from_piece_index(currentPieceIndex);
                 currentElem = currentElem->prev;
-                remove_download_pipe(currentSocket);
+                remove_upload_download_pipe(0, currentSocket);
                 remove_requested_piece(currentPieceIndex);
 
                 if(peerSocket != -1){
@@ -301,11 +301,11 @@ void piece_manager_check_upload_download(){
 
             if(strcmp(buffer, "transmit completed") == 0){
                 currentElem = currentElem->prev;
-                remove_upload_pipe(currentSocket);
+                remove_upload_download_pipe(1, currentSocket);
             }
             else if(strcmp(buffer, "peer connect error") == 0){
                 currentElem = currentElem->prev;
-                remove_upload_pipe(currentSocket);
+                remove_upload_download_pipe(1, currentSocket);
                 
                 // TODO: GET THE PEER SOCKET TO GET THE PEER AND LET THE PEER MANAGER KNOW
                 if(peerSocket != -1){

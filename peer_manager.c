@@ -411,10 +411,11 @@ struct Peer *get_am_unchoked(){
     return NULL;
 }
 
-//update the download rate for the peer, the peer manager doesnt call it
-int update_download_rate(struct Peer *peer, uint64_t download_rate){
-    return 0;
-}
+void update_download_rate(struct Peer *peer, uint64_t download_rate) {
+    if (peer != NULL) {
+        peer->download_rate = download_rate;
+    }
+};
 
 //returns the peer from the given socket
 struct Peer *get_peer_from_socket(int socket){

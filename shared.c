@@ -11,11 +11,12 @@ const char* sha1_to_hexstr(uint8_t* sha1_hash_binary) {
     return (const char*) hash_hex;
 };
 
+// Converts a 40-char string into 20-byte hash
 void hexstr_to_sha1(uint8_t* dst_hash, char* hex_str){
     int pos;
     uint8_t val;
     int i = 0;
-    for(pos = 0; pos < 20; pos += 2){
+    for(pos = 0; pos < 40; pos += 2){
         char p[3];
         memcpy(p, hex_str + pos, 2);
         p[2] = '\0';
