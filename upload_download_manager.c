@@ -2,7 +2,7 @@
 #include "upload_download_manager.h"
 
 void create_download_manager(UploadDownloadManagerArgs* args) {
-    printf("Created download manager!\n"); write(args->write_fd, "f", sizeof(char));
+    printf("Created download manager!\n");
     write(args->write_fd, "f", sizeof(char));
 };
 
