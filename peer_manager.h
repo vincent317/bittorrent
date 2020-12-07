@@ -14,7 +14,8 @@ struct Peer{
     uint64_t download_rate; 
     uint8_t *bitfield; //a dynamically allocated array, 
     int handshaked; //whether this peer has been handshaked
-    struct timeval last_message_time;
+    struct timeval last_received_message_time;
+    struct timeval last_sent_message_time;
     struct Peer *next;
 };
 
