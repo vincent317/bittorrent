@@ -16,12 +16,10 @@ struct Peer{
     struct timeval last_received_message_time;
     struct timeval last_sent_message_time;
     struct Peer *next;
-
     
     // Upload & Download Fields
-
+    struct timeval download_req_sent_time;
     uint64_t download_rate; 
-    struct timeval* waiting_piece_response;
     uint8_t curr_dl; // 1=downloading, 0=not downloading
     uint64_t curr_dl_piece_idx;
     uint8_t curr_up; // 1=uploading, 0=not uploading
