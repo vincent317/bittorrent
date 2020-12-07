@@ -25,11 +25,8 @@ void init_download_pipe();
 void init_upload_pipe();
 void init_requested_piece();
 
-// add pipe to downloadList
-void add_download_pipe(int sock, int pieceIndex, int peerSock);
-
-// Remove pipe to downloadList
-void remove_download_pipe(int sock);
+void record_upload_download_pipe(int is_upload, int sock, int pieceIndex, int peerSock);
+void remove_upload_download_pipe(int is_upload, int sock);
 
 // Return the list of download pipe
 struct pairList * get_download_pipe();
@@ -37,15 +34,8 @@ struct pairList * get_download_pipe();
 // Return true if currently downloading the pieceIndex
 bool is_currently_downloading_piece(int pieceIndex);
 
-// add pipe to uploadList
-void add_upload_pipe(int sock, int pieceIndex, int peerSock);
-
-// Remove pipe to downloadList
-void remove_upload_pipe(int sock);
-
 // Return the list of upload pipe
 struct pairList * get_upload_pipe();
-
 
 // add piece index to requested piece list
 void add_requested_piece(int sock, int pieceIndex);
