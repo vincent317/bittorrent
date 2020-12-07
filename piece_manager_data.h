@@ -18,30 +18,24 @@ struct pairList{
 
     int sock;
     int pieceIndex;
+    int peerSock;
 };
 
 void init_download_pipe();
 void init_upload_pipe();
 void init_requested_piece();
 
-// add pipe to downloadList
-void add_download_pipe(int sock, int pieceIndex);
-
-// Remove pipe to downloadList
-void remove_download_pipe(int sock);
+void record_upload_download_pipe(int is_upload, int sock, int pieceIndex, int peerSock);
+void remove_upload_download_pipe(int is_upload, int sock);
 
 // Return the list of download pipe
 struct pairList * get_download_pipe();
 
-// add pipe to uploadList
-void add_upload_pipe(int sock, int pieceIndex);
-
-// Remove pipe to downloadList
-void remove_upload_pipe(int sock);
+// Return true if currently downloading the pieceIndex
+bool is_currently_downloading_piece(int pieceIndex);
 
 // Return the list of upload pipe
 struct pairList * get_upload_pipe();
-
 
 // add piece index to requested piece list
 void add_requested_piece(int sock, int pieceIndex);
@@ -53,5 +47,10 @@ void remove_requested_piece(int pieceIndex);
 
 // Check if given piece index had a request send for
 bool currently_requesting_piece(int pieceIndex);
+
+// Check if a ongoing request had been send to the given socket
+bool currently_requesting_piece_from(int sock);
+
+int get_peer_socket_from_piece_index(int pieceIndex);
 
 #endif

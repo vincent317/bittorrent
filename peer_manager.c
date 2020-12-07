@@ -1,9 +1,5 @@
 #include <stdlib.h>
 #include <stdint.h>
-#include "cli.h"
-#include "torrent_runtime.h"
-#include "peer_manager.h"
-#include "piece_manager.h"
 #include <curl/curl.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -11,15 +7,25 @@
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <poll.h>
-#include <shared.h>
 #include <time.h>
+#include "shared.h"
+#include "cli.h"
+#include "torrent_runtime.h"
+#include "peer_manager.h"
+#include "piece_manager.h"
 
 /*
  * Periodic functions I need to do:
- * 1. CLI, piece manager , & torrent runtime.
+ * 1. CLI, piece manager, torrent runtime
  * 2. Choking algorithm
  * 3. Send keep alive messages to peers.
 */
+
+void handle_periodic() {
+    piece_manager_periodic();
+    torrent_runtime_periodic();
+    cli_periodic();
+};
 
 struct TrackerResponse{
     uint8_t interval;
@@ -30,7 +36,6 @@ struct TrackerResponse{
 };
 
 //Global variables
-Torrent *mytorrent;
 char peer_id[21] = "zackdazhithong417fin";
 long int interval; //interval that the client should send request to the tracker
 int complete; //number of peers with the entire file, i.e. seeders (integer)
@@ -39,40 +44,7 @@ struct Peer *head_peer = NULL;
 int number_of_peers = 0;
 struct pollfd *peers_sockets;
 struct Peer unchoked_four[4];
-
-
-int read_n_bytes(void *buffer, int bytes_expected, int read_socket){
-    int bytes_received = 0;
-    int temp = 0;
-
-    while(bytes_received < bytes_expected){
-        temp = recv(read_socket, buffer + bytes_received, bytes_expected-bytes_received, 0);
-        if(temp == -1){
-            fprintf(stderr, "read failed\n");
-            return -1;
-        }
-        bytes_received += temp;
-    }
-
-	return bytes_received;
-}
-
-int send_n_bytes(void *buffer, int bytes_expected, int send_socket){
-    int bytes_sent = 0;
-    int temp = 0;
-
-    while(bytes_sent < bytes_expected){
-        temp = send(send_socket, buffer + bytes_sent, bytes_expected-bytes_sent, 0);
-        if(temp == -1){
-            fprintf(stderr, "send failed\n");
-            return -1;
-        }
-        bytes_sent += temp;
-    }
-
-	return bytes_sent;
-}
-
+Torrent * g_torrent;
 
 size_t write_func(void *ptr, size_t size, size_t nmemb, char **write_stream){
     bencode_t tracker_response_bencode;
@@ -252,11 +224,11 @@ void send_tracker_request(){
     if(curl) {
         char url[1000] = {0};
 
-        char *info_hash_encoded = curl_easy_escape(curl, (const char*)mytorrent->info_hash, 20);
+        char *info_hash_encoded = curl_easy_escape(curl, (const char*) g_torrent->info_hash, 20);
         char *peer_id_encoded = curl_easy_escape(curl, peer_id, 20);
         
         sprintf(url, "%s?info_hash=%s&peer_id=%s&port=6881&uploaded=0&downloaded=0&left=%ld&compact=1&event=started", 
-            mytorrent->tracker_url, info_hash_encoded, peer_id_encoded, mytorrent->length);
+            g_torrent->tracker_url, info_hash_encoded, peer_id_encoded, g_torrent->length);
 
         curl_easy_setopt(curl, CURLOPT_URL, url);
 
@@ -311,7 +283,7 @@ int send_handshake_message(struct Peer *peer){
     memcpy(send_string, &temp, 1);
     memcpy(send_string + 1, bittorrent_protocol, 19);
     memcpy(send_string + 20, reserved, 8);
-    memcpy(send_string + 28, mytorrent->info_hash, 20);
+    memcpy(send_string + 28, g_torrent->info_hash, 20);
     memcpy(send_string + 48, peer_id, 20);
     gettimeofday (&(peer->last_sent_message_time), NULL);
 
@@ -360,7 +332,7 @@ int start_peer_manager(Torrent *torrent){
     gettimeofday(&choking_algorithm_time, NULL);
     gettimeofday(&optimistic_unchoking_time, NULL);
     gettimeofday(&periodic_function_time, NULL);
-    mytorrent = torrent;
+    g_torrent = torrent;
     
     send_tracker_request();
 
@@ -403,13 +375,13 @@ int start_peer_manager(Torrent *torrent){
                                 How can we know how many bits are involved in the pass-in bitfield? 
                                 Right now I can only check whether the bitfield has any spare bits set. 
                             */
-                            for(int j = torrent->num_pieces; j < (length-1)*8; j++){
+                            for(int j = g_torrent->num_pieces; j < (length-1)*8; j++){
                                 if (have_piece(bitfield, j) == true){
                                     correct_bitfield = 0;
                                 }
                             }
                             if(correct_bitfield){
-                                torrent->num_pieces;
+                                g_torrent->num_pieces;
                                 peer->bitfield = malloc(length-1);
                                 memcpy(peer->bitfield, bitfield, length-1);
                             }else{
@@ -445,7 +417,7 @@ int start_peer_manager(Torrent *torrent){
                         read_n_bytes(pstr, 8, peers_sockets[i].fd);
                         uint8_t infohash[20];
                         read_n_bytes(infohash, 20, peers_sockets[i].fd);
-                        if(memcmp(infohash, torrent->info_hash, 20) != 0){
+                        if(memcmp(infohash, g_torrent->info_hash, 20) != 0){
                             remove_from_peer_linked_list(peer);
                         }else{
                             peer->handshaked = 1;
@@ -470,9 +442,7 @@ int start_peer_manager(Torrent *torrent){
             gettimeofday(&optimistic_unchoking_time, NULL);
         }
         if(current_time.tv_usec - periodic_function_time.tv_usec >= 500){
-            piece_manager_check_upload_download();
-            cli_periodic();
-            torrent_runtime_periodic();
+            handle_periodic();
             gettimeofday(&periodic_function_time, NULL);
         }
 
@@ -510,7 +480,7 @@ struct Peer *peer_manager_get_root_peer(){
 }
 
 uint8_t peer_manager_get_piece_length(){
-    return mytorrent->piece_length;
+    return g_torrent->piece_length;
 }
 
 //get the list of four peers which we unchoked, used for uploading & downloading (choking algorithm)

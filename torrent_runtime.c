@@ -2,6 +2,7 @@
 #include "bencode.h"
 #include "peer_manager.h"
 
+Torrent* g_torrent = NULL;
 
 void reset_torrent(Torrent* torrent) {
     torrent->hash_str = NULL;
@@ -59,11 +60,11 @@ int parse_bencode(bencode_t* torrent_bencode, Torrent* torrent) {
                 Tested using the class 1184-0.txt.torrent and matched the reult on the class tracker. 
             */
             int len;
-            char *test;
-            bencode_dict_get_start_and_len(&dict_entry, &test,&len);
+            uint8_t* info_placeholder;
+            bencode_dict_get_start_and_len(&dict_entry, (const char**) &info_placeholder, &len);
             uint8_t* ctx_dst = (uint8_t*) torrent->info_hash;
             struct sha1sum_ctx* ctx = sha1sum_create(NULL, 0);            
-            sha1sum_finish(ctx, test, len, ctx_dst);
+            sha1sum_finish(ctx, info_placeholder, len, ctx_dst);
             sha1sum_destroy(ctx);
 
             torrent->hash_str = sha1_to_hexstr(ctx_dst);
@@ -237,10 +238,18 @@ TorrentRuntime* create_torrent_runtime(const char* torrent_path, const char* see
     
     // TODO: Handle Seed Path
 
+    if (g_torrent != NULL) {
+        printf("error: already downloading torrent, cannot download another\n");
+        return NULL;
+    }
+
     // initialize data structures
     Torrent* torrent = (Torrent*) malloc(sizeof(Torrent));
     TorrentRuntime* runtime = (TorrentRuntime*) malloc(sizeof(TorrentRuntime));
     runtime->torrent = torrent;
+
+    // Update global torrent pointer
+    g_torrent = torrent;
 
     // read the .torrent file into memory
     FILE* metainfo_stream = fopen(torrent_path, "r");
@@ -282,17 +291,18 @@ TorrentRuntime* create_torrent_runtime(const char* torrent_path, const char* see
         fp = (TorrentFile*) fp->next_file;
     }
 
-    start_peer_manager(torrent);
+    start_peer_manager(torrent); // this function should consume all process time
+
+    printf("Program execution complete. Terminating.\n");
 
     free(piece_size);
     free(torrent_size);
     fclose(metainfo_stream);
     free(metainfo);
 
-    
-
-    
-    
     return runtime;
 };
 
+void torrent_runtime_periodic() {
+    // TODO
+};

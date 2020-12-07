@@ -13,11 +13,18 @@
 #include <math.h>
 #include "hash.h"
 
+int read_n_bytes(void* buffer, int bytes, int sock);
+int send_n_bytes(void* buffer, int bytes, int sock);
+
 /*
     Converts a SHA-1 hash (20 bytes) into a string
     The returned string must be free'd
 */
 const char* sha1_to_hexstr(uint8_t* hash);
+
+
+// Converts a string into a 20-byte hash
+void hexstr_to_sha1(uint8_t* dst_hash, char* hex_str);
 
 /*
     Converts a size in bytes to a string
@@ -32,7 +39,6 @@ char* calculateSize(uint64_t size);
 // EX: bitfield: 00000000 pieceIndex: 5
 // Change bitfield to 00001000
 void set_have_piece(uint8_t * bitfield, int pieceIndex);
-
 
 // Check if the given bitfield have the given piece index
 bool have_piece(uint8_t * bitfield, int pieceIndex);
