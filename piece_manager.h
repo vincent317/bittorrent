@@ -32,7 +32,7 @@ struct peerPiece{
 
 struct downloadArg{
     int sock;
-    int pieceIndex;
+    uint32_t pieceIndex;
     int msgSize;
     int begin;
 };
@@ -40,7 +40,7 @@ struct downloadArg{
 // Struct to pass argument to upload thread
 struct uploadArg{
     int sock;
-    int pieceIndex;
+    uint32_t pieceIndex;
     int begin;
 };
 
@@ -57,6 +57,9 @@ void piece_manager_periodic();
 // pieces the client already has.
 void piece_manager_startup(Torrent * torrent);
 
+// Check if client is interested in peer
+int piece_manager_am_interested(struct Peer * peer);
+
 // Return the client bitfield
 uint8_t * piece_manager_get_my_bitfield();
 
@@ -67,7 +70,7 @@ int piece_manager_get_my_bitfield_size();
     The Peer Manger calls this function to begin reading a piece from a peer's socket.
     This occurs after a peer sends a "piece" message.
 */
-void piece_manager_create_download_manager(struct Peer * peer, int pieceIndex, int pieceSize, int begin);
+void piece_manager_create_download_manager(struct Peer * peer, uint32_t pieceIndex, int pieceSize, int begin);
 
 // Peer manager call to find what piece to request next and from whom.
 // request - should be initially point to NULL
@@ -77,7 +80,7 @@ void piece_manager_create_download_manager(struct Peer * peer, int pieceIndex, i
 void piece_manager_initiate_download();
 
 // Cancel the request
-bool piece_manager_cancel_request(int pieceIndex);
+bool piece_manager_cancel_request(uint32_t pieceIndex);
 
 // Periodic call by peer manager to listen to the pipe make
 // from upload and download

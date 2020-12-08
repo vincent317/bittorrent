@@ -1,9 +1,6 @@
 
 #include "piece_manager.h"
 #include "piece_manager_data.h"
-#include "peer_manager.h"
-#include "torrent_runtime.h"
-#include "shared.h"
 
 uint8_t * myBitfield;
 int maxNumPiece;
@@ -65,7 +62,7 @@ void piece_manager_startup(Torrent * torrent){
                 hexstr_to_sha1(pieceHash, pieceName);
 
                 // Get piece index from hash and set bitfield
-                int pieceIndex = torrent_hash_to_piece_index(pieceHash);
+                uint32_t pieceIndex = torrent_hash_to_piece_index(pieceHash);
                 if(pieceIndex >= 0){
                     set_have_piece(myBitfield, pieceIndex);
                 }
@@ -73,6 +70,20 @@ void piece_manager_startup(Torrent * torrent){
         }
         closedir(folder);
     }
+}
+
+int piece_manager_am_interested(struct Peer * peer){
+    uint8_t * peerBitfield = peer->bitfield;
+    int result = 0;
+
+    for(int i = 0; i < maxNumPiece; i++){
+        if(!have_piece(myBitfield, i) && have_piece(peerBitfield, i)){
+            result = 1;
+            break;
+        }
+    }
+
+    return result;
 }
 
 uint8_t * piece_manager_get_my_bitfield() {
@@ -92,7 +103,7 @@ int piece_manager_get_my_bitfield_size() {
 void piece_manager_begin_upload_download(
     int is_upload,
     struct Peer* peer,
-    int pieceIndex,
+    uint32_t pieceIndex,
     int begin,
     int len
 ) {
@@ -118,13 +129,13 @@ void piece_manager_begin_upload_download(
 };
 
 void piece_manager_create_download_manager(
-    struct Peer* peer, int pieceIndex, int pieceSize, int begin
+    struct Peer* peer, uint32_t pieceIndex, int pieceSize, int begin
 ) {
     piece_manager_begin_upload_download(0, peer, pieceIndex, begin, pieceSize);
 };
 
 void piece_manager_create_upload_manager(
-    struct Peer* peer, int pieceIndex, int pieceSize, int begin
+    struct Peer* peer, uint32_t pieceIndex, int pieceSize, int begin
 ) {
     piece_manager_begin_upload_download(1, peer, pieceIndex, begin, pieceSize);
 };
@@ -198,7 +209,7 @@ void piece_manager_initiate_download(){
     free(listOpenPeer);
 }
 
-bool piece_manager_cancel_request(int pieceIndex){
+bool piece_manager_cancel_request(uint32_t pieceIndex){
     if(!is_currently_downloading_piece(pieceIndex)){
         remove_requested_piece(pieceIndex);        
         return true;
@@ -239,7 +250,7 @@ void piece_manager_periodic(){
             read(currentElem->sock, buffer, 1);
 
             int currentSocket = currentElem->sock;
-            int currentPieceIndex = currentElem->pieceIndex;
+            uint32_t currentPieceIndex = currentElem->pieceIndex;
             int peerSocket = currentElem->peerSock;
             struct Peer * currentPeer = NULL;
             if(peerSocket != -1){
@@ -265,8 +276,6 @@ void piece_manager_periodic(){
                 }
 
                 if(have_all_piece()){
-                    // TODO: Kill all upload/download thread (MAYBE)
-
                     peer_manager_complete();
                     file_assembler_begin(torrentCopy);
                 }
@@ -330,7 +339,7 @@ void piece_manager_periodic(){
             read(currentElem->sock, buffer, 19);
             int currentSocket = currentElem->sock;
             int peerSocket = currentElem->peerSock;
-            int currentPieceIndex = currentElem->pieceIndex;
+            uint32_t currentPieceIndex = currentElem->pieceIndex;
 
             if(strcmp(buffer, "s") == 0){
                 currentElem = currentElem->prev;
