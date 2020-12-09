@@ -1,5 +1,7 @@
 #include <string.h>
 #include "shared.h"
+#include <netinet/tcp.h>
+
 
 const char* sha1_to_hexstr(uint8_t* sha1_hash_binary) {
     char* hash_hex = calloc(sizeof(char) * 41, sizeof(char));
@@ -105,3 +107,5 @@ bool have_piece(uint8_t * bitfield, int pieceIndex){
     uint8_t temp = bitfield[posByte]; 
     return (temp & m) > 0;
 }
+
+

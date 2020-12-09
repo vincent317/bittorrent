@@ -12,7 +12,7 @@ struct Peer{
     uint8_t address[4]; //The corresponding 64bits version is in big endian format. 
     uint8_t am_choking, am_interested, peer_choking, peer_interested;
     uint8_t *bitfield; //a dynamically allocated array, 
-    int bitfield_length;
+    int bitfield_length; //how many bytes the bitfield uses
     int handshaked; //whether this peer has been handshaked
     struct timeval last_received_message_time;
     struct timeval last_sent_message_time;
@@ -28,7 +28,7 @@ struct Peer{
 };
 
 //returns the root peer of the peer linked list
-struct Peer *get_root_peer();
+struct Peer *peer_manager_get_root_peer();
 
 //number of bytes in each piece (integer)
 uint8_t get_piece_length();
@@ -58,8 +58,6 @@ int peer_manager_inform_disconnect(struct Peer *peer);
 int peer_manager_begin_download(struct Peer* peer, int pieceIndex);
 
 /*
-    TO BE IMPLEMENTED
-
     Params:
     ----------------------------------------------------------------
     is_upload   - 1 if this was an upload, 0 if it was a download
@@ -72,5 +70,8 @@ int peer_manager_begin_download(struct Peer* peer, int pieceIndex);
     fields and any choking algorithm.
 */
 void peer_manager_upload_download_complete(uint8_t is_upload, struct Peer* peer, int piece_index);
+
+//disconnects from all peers
+void peer_manager_complete();
 
 #endif

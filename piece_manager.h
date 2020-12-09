@@ -53,6 +53,9 @@ int piece_manager_get_my_bitfield_size();
 */
 void piece_manager_create_download_manager(struct Peer * peer, int pieceIndex, int pieceSize, int begin);
 
+// Check if client is interested in peer
+int piece_manager_am_interested(struct Peer * peer);
+
 // Call when first startup and have no pieces download yet.
 // For the very first peer that reponse with the bitfield and is unchoking client,
 // call this function and pass in the bitfield. Will return the pieceIndex of 
