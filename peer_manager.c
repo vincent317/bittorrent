@@ -528,13 +528,14 @@ int start_peer_manager(Torrent *torrent){
                         uint8_t ID;
                         read_n_bytes(&ID, 1, peers_sockets[i].fd);
                         
-                        print_ip_address(peer->address);
+                        // print_ip_address(peer->address);
                         if(ID == 5){
                             int correct_bitfield = 1;
                             uint8_t bitfield[length-1];
                             read_n_bytes(bitfield, length-1, peers_sockets[i].fd);
-                            printf("bitfield: ");
+                            printf("peer bitfield: ");
                             print_bitfield(bitfield, length-1);
+                            printf("\n");
 
                             //check if the bitfield length match and if there are any spare bits set
                             if(length-1 ==  (uint32_t) ceil((double) g_torrent->num_pieces / 8)){
@@ -571,7 +572,6 @@ int start_peer_manager(Torrent *torrent){
                             printf("uninterested\n");
                             peer->peer_interested = 0;
                         }else if(ID == 4){
-                            printf("have\n");
                             uint32_t piece_index;
                             read_n_bytes(&piece_index, 4, peers_sockets[i].fd);
                             piece_index = be32toh(piece_index);
@@ -649,9 +649,13 @@ int start_peer_manager(Torrent *torrent){
             gettimeofday(&optimistic_unchoking_time, NULL);
         }
         if(current_time.tv_sec - periodic_function_time.tv_sec > 1){
+            printf("---- [running piece manager periodic]\n");
             piece_manager_periodic();
+            printf("---- [running torrent periodic]\n");
             torrent_runtime_periodic();
+            printf("---- [running cli periodic]\n");
             cli_periodic();
+            printf("---- PERIODIC FINISHED ----\n");
             gettimeofday(&periodic_function_time, NULL);
         }
         if(current_time.tv_sec - tracker_request_time.tv_sec >= interval){
