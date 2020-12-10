@@ -1,6 +1,8 @@
-
 #include "torrent_runtime.h"
 #include "bencode.h"
+#include "peer_manager.h"
+
+Torrent* g_torrent = NULL;
 
 void reset_torrent(Torrent* torrent) {
     torrent->hash_str = NULL;
@@ -51,11 +53,21 @@ int parse_bencode(bencode_t* torrent_bencode, Torrent* torrent) {
         };
 
         if (strncmp(key, "info", keylen) == 0) {
-            uint8_t* ctx_dst = (uint8_t*) &torrent->info_hash[0];
-            struct sha1sum_ctx* ctx = sha1sum_create(NULL, 0);
-            sha1sum_finish(ctx, (uint8_t*) dict_entry.str, (size_t) dict_entry.len, ctx_dst);
-            torrent->hash_str = sha1_to_hexstr(ctx_dst);
+            /*
+                Edited by Dazhi on 11/30/2020
+                Problem: The hash code here didnt work before. It was giving me inconsistent hash and the info string is also out of bound.
+                Fix: Use bencode_dict_get_start_and_len to get the correct info string, do NOT rely on the dict_entry.str & dict_entry.len.
+                Tested using the class 1184-0.txt.torrent and matched the reult on the class tracker. 
+            */
+            int len;
+            uint8_t* info_placeholder;
+            bencode_dict_get_start_and_len(&dict_entry, (const char**) &info_placeholder, &len);
+            uint8_t* ctx_dst = (uint8_t*) torrent->info_hash;
+            struct sha1sum_ctx* ctx = sha1sum_create(NULL, 0);            
+            sha1sum_finish(ctx, info_placeholder, len, ctx_dst);
+            sha1sum_destroy(ctx);
 
+            torrent->hash_str = sha1_to_hexstr(ctx_dst);
             while (bencode_dict_has_next(&dict_entry)) {
                 const char* info_key;
                 int info_keylen;
@@ -222,14 +234,27 @@ int parse_bencode(bencode_t* torrent_bencode, Torrent* torrent) {
     return 0;
 };
 
+//To be implemented
+uint32_t torrent_hash_to_piece_index(uint8_t* hash){
+    return 0;
+}
+
 TorrentRuntime* create_torrent_runtime(const char* torrent_path, const char* seed_path) {
     
     // TODO: Handle Seed Path
+
+    if (g_torrent != NULL) {
+        printf("error: already downloading torrent, cannot download another\n");
+        return NULL;
+    }
 
     // initialize data structures
     Torrent* torrent = (Torrent*) malloc(sizeof(Torrent));
     TorrentRuntime* runtime = (TorrentRuntime*) malloc(sizeof(TorrentRuntime));
     runtime->torrent = torrent;
+
+    // Update global torrent pointer
+    g_torrent = torrent;
 
     // read the .torrent file into memory
     FILE* metainfo_stream = fopen(torrent_path, "r");
@@ -271,17 +296,18 @@ TorrentRuntime* create_torrent_runtime(const char* torrent_path, const char* see
         fp = (TorrentFile*) fp->next_file;
     }
 
+    start_peer_manager(torrent); // this function should consume all process time
+
+    printf("Program execution complete. Terminating.\n");
+
     free(piece_size);
     free(torrent_size);
     fclose(metainfo_stream);
     free(metainfo);
 
-    // create peer manager
-    // TODO
-
-    // create piece manager
-    // TODO
-
     return runtime;
 };
 
+void torrent_runtime_periodic() {
+    // TODO
+};

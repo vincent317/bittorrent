@@ -1,6 +1,17 @@
-
-#include "shared.h"
 #include <string.h>
+#include "shared.h"
+#include <netinet/tcp.h>
+
+void print_bitfield(uint8_t *bitfield, int length){
+    for(int i= 0; i < length; i++){
+        for (int j=0; j< 8;j++){
+            uint8_t a = (bitfield[i] << j);
+            a >>= 7;
+            printf("%d", a );
+        }
+        printf(" ");
+    }
+}
 
 const char* sha1_to_hexstr(uint8_t* sha1_hash_binary) {
     char* hash_hex = calloc(sizeof(char) * 41, sizeof(char));
@@ -10,6 +21,54 @@ const char* sha1_to_hexstr(uint8_t* sha1_hash_binary) {
 	}
 
     return (const char*) hash_hex;
+};
+
+// Converts a 40-char string into 20-byte hash
+void hexstr_to_sha1(uint8_t* dst_hash, char* hex_str){
+    int pos;
+    uint8_t val;
+    int i = 0;
+    for(pos = 0; pos < 40; pos += 2){
+        char p[3];
+        memcpy(p, hex_str + pos, 2);
+        p[2] = '\0';
+        char * endPtr;
+        val = (uint8_t) strtoul(p, &endPtr, 16);
+        dst_hash[i] = val;
+        i++;
+    }
+};
+
+int read_n_bytes(void *buffer, int bytes_expected, int read_socket){
+    int bytes_received = 0;
+    int temp = 0;
+
+    while(bytes_received < bytes_expected){
+        temp = recv(read_socket, buffer + bytes_received, bytes_expected-bytes_received, 0);
+        if(temp == -1){
+            fprintf(stderr, "read failed\n");
+            return -1;
+        }
+        bytes_received += temp;
+    }
+
+	return bytes_received;
+};
+
+int send_n_bytes(void *buffer, int bytes_expected, int send_socket){
+    int bytes_sent = 0;
+    int temp = 0;
+
+    while(bytes_sent < bytes_expected){
+        temp = send(send_socket, buffer + bytes_sent, bytes_expected-bytes_sent, 0);
+        if(temp == -1){
+            fprintf(stderr, "send failed\n");
+            return -1;
+        }
+        bytes_sent += temp;
+    }
+
+	return bytes_sent;
 };
 
 /*
@@ -42,3 +101,21 @@ char* calculateSize(uint64_t size) {
     strcpy(result, "0");
     return result;
 };
+
+void set_have_piece(uint8_t * bitfield, int pieceIndex){
+    int posByte = pieceIndex / 8;
+    int pos = 7 - (pieceIndex % 8);
+    int m = 1 << pos;
+    bitfield[posByte] = bitfield[posByte] | m;
+}
+
+// Check if the given bitfield have the given piece index
+bool have_piece(uint8_t * bitfield, int pieceIndex){
+    int posByte = pieceIndex / 8;
+    int pos = 7 - (pieceIndex % 8);
+    int m = 1 << pos;
+    uint8_t temp = bitfield[posByte]; 
+    return (temp & m) > 0;
+}
+
+

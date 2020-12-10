@@ -1,3 +1,6 @@
+#ifndef PIECE_MANAGER_DATA_H
+#define PIECE_MANAGER_DATA_H
+
 #include <stdint.h>
 #include <stdio.h>
 #include <pthread.h>
@@ -9,33 +12,45 @@
 #include <stdbool.h>
 
 // Use as a list for holding download and upload pipe
-struct intList{
-    struct intList * next;
-    struct intList * prev;
+struct pairList{
+    struct pairList * next;
+    struct pairList * prev;
 
-    int value;
+    int sock;
+    int pieceIndex;
+    int peerSock;
 };
 
-void initDownloadPipe();
-void initUploadPipe();
-void initRequestedPiece();
+void init_download_pipe();
+void init_upload_pipe();
+void init_requested_piece();
 
-// add pipe to downloadList
-void addDownloadPipe(int sock);
+void record_upload_download_pipe(int is_upload, int sock, int pieceIndex, int peerSock);
+void remove_upload_download_pipe(int is_upload, int sock);
 
-// Remove pipe to downloadList
-void removeDownloadPipe(int sock);
+// Return the list of download pipe
+struct pairList * get_download_pipe();
 
-// add pipe to uploadList
-void addUploadPipe(int sock);
+// Return true if currently downloading the pieceIndex
+bool is_currently_downloading_piece(int pieceIndex);
 
-// Remove pipe to downloadList
-void removeUploadPipe(int sock);
+// Return the list of upload pipe
+struct pairList * get_upload_pipe();
 
 // add piece index to requested piece list
-void addRequestedPiece(int sock);
+void add_requested_piece(int sock, int pieceIndex);
 
 // Remove piece index to requested piece list
 // Call when got the piece or issue with connection 
 // so no longer can get the piece
-void removeRequestedPiece(int sock);
+void remove_requested_piece(int pieceIndex);
+
+// Check if given piece index had a request send for
+bool currently_requesting_piece(int pieceIndex);
+
+// Check if a ongoing request had been send to the given socket
+bool currently_requesting_piece_from(int sock);
+
+int get_peer_socket_from_piece_index(int pieceIndex);
+
+#endif

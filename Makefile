@@ -1,7 +1,7 @@
 CC=gcc
 CFLAGS=-Wall -Iincludes -Wextra -std=gnu99 -ggdb
-LDLIBS=-lcrypto -lm
-OBJS=cli.o torrent_runtime.o shared.o hash.o bencode.o
+LDLIBS=-lcrypto -lm -lcurl -pthread
+OBJS=shared.o cli.o torrent_runtime.o peer_manager.o bencode.o hash.o piece_manager.o piece_manager_data.o upload_download_manager.o
 
 all: cli
 
@@ -11,10 +11,22 @@ shared.o:
 hash.o:
 	$(CC) $(CFLAGS) hash.c -c $(LDLIBS)
 
+upload_download_manager.o:
+	$(CC) $(CFLAGS) upload_download_manager.c -c $(LDLIBS)
+
+piece_manager_data.o:
+	$(CC) $(CFLAGS) piece_manager_data.c -c $(LDLIBS)
+
+piece_manager.o: shared.o piece_manager_data.o upload_download_manager.o torrent_runtime.o
+	$(CC) $(CFLAGS) piece_manager.c -c $(LDLIBS)
+
+peer_manager.o: shared.o upload_download_manager.o
+	$(CC) $(CFLAGS) peer_manager.c -c $(LDLIBS)
+
 bencode.o:
 	$(CC) $(CFLAGS) -c ./heapless-bencode/bencode.c
 
-torrent_runtime.o: bencode.o hash.o
+torrent_runtime.o: hash.o shared.o bencode.o peer_manager.o piece_manager.o
 	$(CC) $(CFLAGS) -c torrent_runtime.c -c $(LDLIBS)
 
 cli.o:
@@ -25,3 +37,4 @@ cli: shared.o cli.o torrent_runtime.o
 
 clean:
 	rm -rf *~ *.o
+
