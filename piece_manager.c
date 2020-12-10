@@ -73,6 +73,20 @@ void piece_manager_startup(Torrent * torrent){
     }
 }
 
+int piece_manager_am_interested(struct Peer * peer){
+    uint8_t * peerBitfield = peer->bitfield;
+    int result = 0;
+
+    for(int i = 0; i < maxNumPiece; i++){
+        if(!have_piece(myBitfield, i) && have_piece(peerBitfield, i)){
+            result = 1;
+            break;
+        }
+    }
+
+    return result;
+}
+
 uint8_t * piece_manager_get_my_bitfield() {
     return myBitfield;
 }
@@ -146,7 +160,7 @@ void piece_manager_initiate_download(){
         if(!have_piece(myBitfield, i) && !currently_requesting_piece(i)){
             int chance = 6;
             int currentOccur = 0;
-            struct Peer * currentPeer = get_root_peer();
+            struct Peer * currentPeer = peer_manager_get_root_peer();
             struct Peer * currentSmallest = NULL;
 
             while(currentPeer != NULL){
@@ -235,10 +249,10 @@ void piece_manager_check_upload_download(){
                 remove_requested_piece(currentPieceIndex);
 
                 if(peerSocket != -1){
-                    struct Peer * currentPeer = get_root_peer();
+                    struct Peer * currentPeer = peer_manager_get_root_peer();
                     while(currentPeer != NULL){
                         if(currentPeer->socket == peerSocket){
-                            peer_manager_upload_download_complete(0, currentPeer);
+                            peer_manager_upload_download_complete(0, currentPeer, currentPieceIndex);
                             break;
                         }
                         currentPeer = currentPeer->next;
@@ -252,7 +266,7 @@ void piece_manager_check_upload_download(){
                 remove_requested_piece(currentPieceIndex);
 
                 if(peerSocket != -1){
-                    struct Peer * currentPeer = get_root_peer();
+                    struct Peer * currentPeer = peer_manager_get_root_peer();
                     while(currentPeer != NULL){
                         if(currentPeer->socket == peerSocket){
                             peer_manager_inform_disconnect(currentPeer);
@@ -309,7 +323,7 @@ void piece_manager_check_upload_download(){
                 
                 // TODO: GET THE PEER SOCKET TO GET THE PEER AND LET THE PEER MANAGER KNOW
                 if(peerSocket != -1){
-                    struct Peer * currentPeer = get_root_peer();
+                    struct Peer * currentPeer = peer_manager_get_root_peer();
                     while(currentPeer != NULL){
                         if(currentPeer->socket == peerSocket){
                             peer_manager_inform_disconnect(currentPeer);
