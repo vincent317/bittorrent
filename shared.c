@@ -2,6 +2,16 @@
 #include "shared.h"
 #include <netinet/tcp.h>
 
+void print_bitfield(uint8_t *bitfield, int length){
+    for(int i= 0; i < length; i++){
+        for (int j=0; j< 8;j++){
+            uint8_t a = (bitfield[i] << j);
+            a >>= 7;
+            printf("%d", a );
+        }
+        printf(" ");
+    }
+}
 
 const char* sha1_to_hexstr(uint8_t* sha1_hash_binary) {
     char* hash_hex = calloc(sizeof(char) * 41, sizeof(char));
