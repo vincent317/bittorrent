@@ -6,6 +6,8 @@
 #include <time.h>
 #include "torrent_runtime.h"
 
+uint16_t TEMP_CURRENTLY_DOWNLOADING;
+
 struct Peer{
     int socket;
     uint16_t port; //Also in big endian format
@@ -22,6 +24,8 @@ struct Peer{
     struct timeval download_req_sent_time;
     uint64_t download_rate; 
     uint8_t curr_dl; // 1=downloading, 0=not downloading
+    uint8_t curr_dl_begin; // did the download begin
+    uint32_t curr_dl_next_subpiece; // 0-based index of last subpiece downloaded
     uint64_t curr_dl_piece_idx;
     uint8_t curr_up; // 1=uploading, 0=not uploading
     uint64_t curr_up_piece_idx;
