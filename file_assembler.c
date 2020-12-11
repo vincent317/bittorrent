@@ -50,7 +50,7 @@ void file_assembler_begin(Torrent * torrent){
                 // Add upper part of piece
                 int offset = (lowerLimit - (pieceIndex * pieceSize));
                 int amountGet = fileSize - offset;
-                read_then_write(piece, fp, offset, amountGet);
+                file_assembler_read_then_write(piece, fp, offset, amountGet);
 
                 pieceIndex++;
                 total += amountGet;
@@ -58,13 +58,13 @@ void file_assembler_begin(Torrent * torrent){
             else if(v > upperLimit){
                 // Add lower part of piece
                 int amountGet = upperLimit - (pieceIndex * pieceSize);
-                read_then_write(piece, fp, 0, amountGet);
+                file_assembler_read_then_write(piece, fp, 0, amountGet);
 
                 total += amountGet;
             }
             else if(lowerLimit < v && v <= upperLimit){
                 // Add whole piece
-                read_then_write(piece, fp, 0, fileSize);
+                file_assembler_read_then_write(piece, fp, 0, fileSize);
 
                 pieceIndex++;
                 total += fileSize;
