@@ -8,11 +8,14 @@
 #include <netinet/tcp.h>
 #include <poll.h>
 #include <time.h>
+#include <math.h>
 #include "shared.h"
 #include "cli.h"
 #include "torrent_runtime.h"
 #include "peer_manager.h"
 #include "piece_manager.h"
+
+#define PIECE_DOWNLOAD_SIZE 16000
 
 /*
  * Periodic functions the peer manager need to do:
@@ -73,8 +76,8 @@ int create_peer_connection_socket(uint8_t *addr, uint16_t port){
     }
 
     struct timeval timeout;
-	timeout.tv_sec  = 5;  
-	timeout.tv_usec = 0; 
+	timeout.tv_sec  = 0;  
+	timeout.tv_usec = 500000; 
 	setsockopt(peer_socket, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
 	setsockopt(peer_socket, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
     
@@ -137,6 +140,8 @@ void parse_peers_string(const char *string, int tn){
 
         print_ip_address(ip_arr);
         insert_peerlist_ifnotexists(ip_arr, port);
+
+        if (i > 5) break;
     }
     print_peer_list();
 }
@@ -310,6 +315,23 @@ int send_handshake_message(struct Peer *peer){
         return 0;
     }
 
+    // send the bitfield
+    printf("sending bitfield\n");
+    uint64_t bitfield_len = ceil(((double) g_torrent->num_pieces) / 8.0); // len in bytes
+    uint8_t* bitfield_packet;
+    bitfield_packet = calloc(4096, sizeof(uint8_t));
+
+    printf("BITFIELD LEN: %d\n\n", (int) (bitfield_len));
+
+    uint32_t len_nbo = htobe32(1 + bitfield_len);
+    memcpy(bitfield_packet + 0, &len_nbo, sizeof(uint32_t));
+
+    *(bitfield_packet + 4) = 5;
+
+    if (send_n_bytes((void*) bitfield_packet, 4 + 1 + bitfield_len, peer->socket) == -1) {
+        printf("error!!!! sending bitfield!!!\n");
+    }
+
     return 1;
 }
 
@@ -404,8 +426,19 @@ void peer_manager_upload_download_complete(uint8_t is_upload, struct Peer* peer,
     }
     update_pollfd();
 
-    //Broadcast the have message
-    if(!is_upload){
+    
+    uint32_t total_subpieces = ceil(g_torrent->piece_length / PIECE_DOWNLOAD_SIZE);    
+
+    // IF REMAINING SUBPIECES, DOWNLOAD THE NEXT SUBPIECE
+    if (
+        peer->curr_dl_next_subpiece < total_subpieces
+    ) {
+        peer_manager_begin_download(peer, piece_index);
+        return;
+    }
+
+    // IF WE DOWNLOADED ALL PIECES, BROADCAST
+    if (!is_upload) {
         struct Peer *cur = head_peer;
         while(cur != NULL){
             struct Peer *next = cur->next;
@@ -414,6 +447,11 @@ void peer_manager_upload_download_complete(uint8_t is_upload, struct Peer* peer,
         }
         piece_manager_initiate_download();
     }
+
+    // mark no longer downloading
+    peer->curr_dl = 0;
+    peer->curr_dl_next_subpiece = 0;
+    peer->curr_dl_piece_idx = 0;
 }
 
 void choking_algorithm(){
@@ -611,8 +649,8 @@ int start_peer_manager(Torrent *torrent){
                                 continue;
                             };
 
-                            print_bitfield(bitfield, length-1);
-                            printf("\n");
+                            // print_bitfield(bitfield, length-1);
+                            // printf("\n");
 
                             //check if the bitfield length match and if there are any spare bits set
                             if(length-1 ==  (uint32_t) ceil((double) g_torrent->num_pieces / 8)){
@@ -811,7 +849,7 @@ int peer_manager_update_download_rate(struct Peer *peer, uint64_t download_rate)
     return 0;
 }
 
-int peer_manager_begin_download(struct Peer* peer, int pieceIndex){
+int peer_manager_begin_download(struct Peer* peer, int pieceIndex) {
     if(peer->peer_choking) {
         printf("[Peer Manager] Error, cannot download from peer, they are choking us!\n");
         return 0;
@@ -836,6 +874,22 @@ int peer_manager_begin_download(struct Peer* peer, int pieceIndex){
     pieceIndex_t = htobe32(pieceIndex_t);
     uint32_t begin = 0;
     uint32_t length = g_torrent->piece_length;
+
+    if (length > PIECE_DOWNLOAD_SIZE) {
+        // if we are already downloading this piece, get the next subpiece
+        if (
+            peer->curr_dl &&
+            peer->curr_dl_piece_idx == pieceIndex
+        ) {
+            begin += peer->curr_dl_next_subpiece * PIECE_DOWNLOAD_SIZE;
+            peer->curr_dl_next_subpiece++;
+        }
+
+        length = PIECE_DOWNLOAD_SIZE;
+        printf("getting subpiece, [%d - %d), len=%d\n",
+            (int) begin, (int) (begin + length), length);
+    }
+
     length = htobe32(length);
 
     uint8_t buffer[17];
