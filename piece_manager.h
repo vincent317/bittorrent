@@ -17,6 +17,8 @@
 #include "torrent_runtime.h"
 #include "peer_manager.h"
 #include "upload_download_manager.h"
+#include "piece_manager_data.h"
+#include "file_assembler.h"
 
 struct requestPiece{
     int index;              // Request piece's index

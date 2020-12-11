@@ -78,4 +78,8 @@ void peer_manager_upload_download_complete(uint8_t is_upload, struct Peer* peer,
 //disconnects from all peers
 void peer_manager_complete();
 
+//update the download rate for the peer, the peer manager doesnt call it
+int peer_manager_update_download_rate(struct Peer *peer, uint64_t download_rate);
+
+
 #endif

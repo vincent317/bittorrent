@@ -1,4 +1,5 @@
 #include "file_assembler.h"
+#include "torrent_runtime.h"
 
 void file_assembler_begin(Torrent * torrent){
     TorrentFile * currentFile = torrent->files;
@@ -17,20 +18,21 @@ void file_assembler_begin(Torrent * torrent){
 
         TorrentFilePath * path = currentFile->path;
         char backPath[2048];
-        chdir('./');
+        backPath[0] = '\0';
+        chdir("./");
         while(path->next != NULL){
             mkdir(path->component, 0777);
 
-            strcat(backPath, '../');
+            strcat(backPath, "../");
             chdir(path->component);
             path = path->next;
         }
         chdir(backPath);
         
-        fp = fopen(currentFile->full_path, "a");
+        fp = fopen(currentFile->full_path, "w");
 
         while(total < upperLimit){
-            const char * filename = sha1_to_hexstr(torrent->piece_hashes[pieceIndex]);
+            char * filename = sha1_to_hexstr(torrent->piece_hashes[pieceIndex]);
             char filePath[256];
             memset(filePath, 0, sizeof(char) * 256);
             filePath[0] = '\0';
@@ -40,11 +42,20 @@ void file_assembler_begin(Torrent * torrent){
             strcat(filePath, filename);
             piece = fopen(filePath, "r");
 
+            if(piece == NULL){
+                int errnum = errno;
+                fprintf(stderr, "Error opening file: %s\n", strerror( errnum ));
+                char cwd[2000];
+                if (getcwd(cwd, sizeof(cwd)) != NULL) {
+                    printf("%s\n", cwd);
+                }
+            }
+
             fseek(piece, 0L, SEEK_END);
             uint64_t fileSize = ftell(piece);
             rewind(piece);
 
-            int v = total + fileSize;
+            uint64_t v = total + fileSize;
             
             if(pieceIndex * pieceSize < lowerLimit){
                 // Add upper part of piece
@@ -91,7 +102,7 @@ void file_assembler_read_then_write(FILE * readFile, FILE * writeFile, uint64_t 
     }
 
     while(amountLeft > 0){
-        int readAmount = 2064 < amountLeft ? 2064 : amountLeft;
+        int readAmount = 2048 < amountLeft ? 2048 : amountLeft;
         fread(buffer, 1, readAmount, readFile);
         fwrite(buffer, 1, readAmount, writeFile);
         amountLeft = amountLeft - readAmount;
