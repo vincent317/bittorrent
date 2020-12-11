@@ -2,6 +2,9 @@
 #include "shared.h"
 #include <netinet/tcp.h>
 
+#include <sys/socket.h>
+#include <sys/time.h>
+
 void print_bitfield(uint8_t *bitfield, int length){
     for(int i= 0; i < length; i++){
         for (int j=0; j< 8;j++){
@@ -39,17 +42,22 @@ void hexstr_to_sha1(uint8_t* dst_hash, char* hex_str){
     }
 };
 
-int read_n_bytes(void *buffer, int bytes_expected, int read_socket){
+int read_n_bytes(void *buffer, int bytes_expected, int read_socket) {
     int bytes_received = 0;
-    int temp = 0;
+    int bytes_read = 0;
+    int i = 0;
 
-    while(bytes_received < bytes_expected){
-        temp = recv(read_socket, buffer + bytes_received, bytes_expected-bytes_received, 0);
-        if(temp == -1){
-            fprintf(stderr, "read failed\n");
+    while(bytes_received < bytes_expected) {
+        bytes_read = recv(read_socket, buffer + bytes_received, bytes_expected-bytes_received, 0);
+
+        if(bytes_read <= 0) {
+            printf("Error: Reading %d bytes from socket %d failed (code=%d)\n",
+                bytes_expected, read_socket, bytes_read);
+            
             return -1;
         }
-        bytes_received += temp;
+
+        bytes_received += bytes_read;
     }
 
 	return bytes_received;
