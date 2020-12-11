@@ -172,6 +172,7 @@ void piece_manager_initiate_download(){
                 // have current look at piece that client don't have
                 if(
                     !currently_requesting_piece_from(currentPeer->socket) && 
+                    !currentPeer->curr_dl &&
                     // currentPeer->am_interested == 1 && 
                     currentPeer->peer_choking == 0 && 
                     have_piece(currentPeer->bitfield, i)

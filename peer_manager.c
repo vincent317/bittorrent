@@ -554,6 +554,7 @@ int start_peer_manager(Torrent *torrent){
                             continue;
                         };
                         
+                        printf("********* Got message from peer! id=%d\n", ID);
                         
                         // choke: <len=0001><id=0>
                         if (ID == 0) {
@@ -845,7 +846,7 @@ int peer_manager_begin_download(struct Peer* peer, int pieceIndex){
     memcpy(buffer+13, &length, 4);
 
     if(send_n_bytes(buffer, 17, cur->socket) == -1){
-        fprintf(stderr, "sending download request failed\n");
+        printf("[Peer Manager] During begin download, sending download request failed\n");
         remove_from_peer_linked_list(cur);
         update_pollfd();
         number_of_peers --;
