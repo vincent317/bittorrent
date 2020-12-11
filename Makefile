@@ -17,7 +17,7 @@ upload_download_manager.o:
 piece_manager_data.o:
 	$(CC) $(CFLAGS) piece_manager_data.c -c $(LDLIBS)
 
-piece_manager.o: shared.o piece_manager_data.o upload_download_manager.o
+piece_manager.o: shared.o piece_manager_data.o upload_download_manager.o torrent_runtime.o
 	$(CC) $(CFLAGS) piece_manager.c -c $(LDLIBS)
 
 peer_manager.o: shared.o upload_download_manager.o

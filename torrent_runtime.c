@@ -11,6 +11,7 @@ void reset_torrent(Torrent* torrent) {
     torrent->multiple_files = 0;
     torrent->length = 0;
     torrent->piece_length = 0;
+    torrent->num_pieces = 0;
     torrent->piece_hashes = NULL;
     torrent->files = NULL;
 };
@@ -234,6 +235,11 @@ int parse_bencode(bencode_t* torrent_bencode, Torrent* torrent) {
     return 0;
 };
 
+//To be implemented
+uint32_t torrent_hash_to_piece_index(uint8_t* hash) {
+    return 0;
+};
+
 TorrentRuntime* create_torrent_runtime(const char* torrent_path, const char* seed_path) {
     
     // TODO: Handle Seed Path
@@ -291,6 +297,7 @@ TorrentRuntime* create_torrent_runtime(const char* torrent_path, const char* see
         fp = (TorrentFile*) fp->next_file;
     }
 
+    piece_manager_startup(torrent);
     start_peer_manager(torrent); // this function should consume all process time
 
     printf("Program execution complete. Terminating.\n");

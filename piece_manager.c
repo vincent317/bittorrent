@@ -25,6 +25,8 @@ void piece_manager_startup(Torrent * torrent){
 
 //    uint32_t fileLen = torrent->length;        // Get the length field in the torrent file
 //    uint32_t pieceLen = torrent->piece_length;      // Get the piece length in the torrent file
+    printf("HERE! num pieces: %d\n", torrent->num_pieces);
+
     maxNumPiece = torrent->num_pieces;
     myBitfield = malloc((int) ceil((double) maxNumPiece / 8));
 
@@ -167,25 +169,33 @@ void piece_manager_initiate_download(){
     int minOccur = INT_MAX;             // The number of peer that have the minPiece 
     int minPiece = -1;                  // The current rarest piece
 
+    printf("[Piece Manager] initiating download.. num pieces: %d\n", maxNumPiece);
+
     for(int i = 0; i < maxNumPiece; i++){
         // Check that client don't have piece and had not send a request for the piece
         if(!have_piece(myBitfield, i) && !currently_requesting_piece(i)){
             int chance = 6;
             int currentOccur = 0;
             int pos;
+            struct Peer * currentPeer = peer_manager_get_root_peer();
             struct Peer * currentSmallest = NULL;
 
             for(pos = 0; pos < numOpen; pos++){
                 // Client is interested and peer is not choking and 
                 // have current look at piece that client don't have
-                // and currently not waiting an a request piece from the peer
-                if(!currently_requesting_piece_from((listOpenPeer[pos].peer)->socket) && 
-                    have_piece((listOpenPeer[pos].peer)->bitfield, i)){
-                    
+                if(
+                    !currently_requesting_piece_from(currentPeer->socket) && 
+                    !currentPeer->curr_dl &&
+                    // currentPeer->am_interested == 1 && 
+                    currentPeer->peer_choking == 0 && 
+                    have_piece(currentPeer->bitfield, i)
+                ) {
                     currentOccur++;
+
                     if(chance >= 5){
                         currentSmallest = listOpenPeer[pos].peer;
                     }
+
                     chance = rand() % 10; 
                 }
             }
@@ -198,12 +208,14 @@ void piece_manager_initiate_download(){
     }
 
 
-    if(minPiece != -1){
-
+    if(minPiece != -1) {
+        printf("[Piece Manager] beginning download on piece index : %d\n", minPiece);
         peer_manager_begin_download(smallest, minPiece);
 
         // Track piece that have send request for
         add_requested_piece(smallest->socket, minPiece);
+    } else {
+        printf("[Piece Manager] could not identify piece to download!\n", minPiece);
     }
 
     free(listOpenPeer);
@@ -350,7 +362,7 @@ void piece_manager_periodic(){
                 remove_upload_download_pipe(1, currentSocket);
                 
                 if(peerSocket != -1){
-                    struct Peer * currentPeer = get_root_peer();
+                    struct Peer * currentPeer = peer_manager_get_root_peer();
                     while(currentPeer != NULL){
                         if(currentPeer->socket == peerSocket){
                             peer_manager_inform_disconnect(currentPeer);
@@ -386,4 +398,5 @@ bool have_all_piece(){
 
 void piece_manager_periodic() {
     // TODO: All periodic code here
+    piece_manager_initiate_download();
 };
