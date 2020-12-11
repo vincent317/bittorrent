@@ -1,6 +1,7 @@
 
 #include "piece_manager.h"
 #include "piece_manager_data.h"
+#include "file_assembler.h"
 
 uint8_t * myBitfield;
 int maxNumPiece;
@@ -113,6 +114,9 @@ void piece_manager_begin_upload_download(
     int fd[2]; // 0=read, 1=write
     pipe(fd);
 
+    printf("[Piece Manager] begin up/dl. begin=%d, len=%d, piece=%d\n",
+        begin, len, pieceIndex);
+
     // Malloc args for the upload/download manager
     UploadDownloadManagerArgs* args = malloc(sizeof(UploadDownloadManagerArgs));
     args->is_upload = is_upload;
@@ -145,20 +149,26 @@ void piece_manager_create_upload_manager(
 
 // Current code can request multiple piece to same peer if that piece is among the rarest.
 void piece_manager_initiate_download(){
-    struct Peer * p = get_root_peer();
+    // TODO: Remove
+    if (TEMP_CURRENTLY_DOWNLOADING) {
+        printf("Download in progress....\n");
+        return;
+    }
+    
+    struct Peer * p = peer_manager_get_root_peer();
     int numOpen = 0;
     while(p != NULL){
-        if(p->am_interested == 1 && p->peer_choking == 0){
+        if(/*p->am_interested == 1 && */ p->peer_choking == 0){
             numOpen++;
         }
         p = p->next;
     }
 
     struct OpenPeer * listOpenPeer = malloc(numOpen * sizeof(struct OpenPeer));
-    p = get_root_peer();
+    p = peer_manager_get_root_peer();
     int index = 0;
     while(p != NULL){
-        if(p->am_interested == 1 && p->peer_choking == 0){
+        if(/*p->am_interested == 1 && */ p->peer_choking == 0){
             listOpenPeer[index].peer = p;
             index++;
         }
@@ -169,11 +179,12 @@ void piece_manager_initiate_download(){
     int minOccur = INT_MAX;             // The number of peer that have the minPiece 
     int minPiece = -1;                  // The current rarest piece
 
-    printf("[Piece Manager] initiating download.. num pieces: %d\n", maxNumPiece);
+    printf("[Piece Manager] initiating download.. num pieces: %d!!\n", maxNumPiece);
 
     for(int i = 0; i < maxNumPiece; i++){
         // Check that client don't have piece and had not send a request for the piece
         if(!have_piece(myBitfield, i) && !currently_requesting_piece(i)){
+            // printf("checking for piece %d\n", i);
             int chance = 6;
             int currentOccur = 0;
             int pos;
@@ -192,6 +203,8 @@ void piece_manager_initiate_download(){
                 ) {
                     currentOccur++;
 
+                    // listOpenPeer[pos].peer is sometimes null
+
                     if(chance >= 5){
                         currentSmallest = listOpenPeer[pos].peer;
                     }
@@ -200,6 +213,7 @@ void piece_manager_initiate_download(){
                 }
             }
             if(minOccur > currentOccur && currentOccur != 0){
+                printf("found min occur!\n");
                 minOccur = currentOccur;
                 smallest = currentSmallest;
                 minPiece = i;
@@ -210,6 +224,11 @@ void piece_manager_initiate_download(){
 
     if(minPiece != -1) {
         printf("[Piece Manager] beginning download on piece index : %d\n", minPiece);
+
+        if (smallest == NULL) {
+            printf("-- error: piece manager selected NULL peer!\n");
+        }
+
         peer_manager_begin_download(smallest, minPiece);
 
         // Track piece that have send request for
@@ -217,6 +236,18 @@ void piece_manager_initiate_download(){
     } else {
         printf("[Piece Manager] could not identify piece to download!\n", minPiece);
     }
+
+    struct Peer* ptr = peer_manager_get_root_peer();
+    uint16_t num_unchoked = 0;
+
+    while (ptr != NULL) {
+        if (ptr->peer_choking == 0)
+            num_unchoked++;
+        
+        ptr = ptr->next;
+    }
+
+    printf("- %d peers UNCHOKING us\n", num_unchoked);
 
     free(listOpenPeer);
 }
@@ -229,7 +260,10 @@ bool piece_manager_cancel_request(uint32_t pieceIndex){
     return false;
 }
 
-void piece_manager_periodic(){
+void piece_manager_periodic() {
+    
+    piece_manager_initiate_download();
+
     struct timeval waitingTime;
     fd_set downloadPipeSet;
     fd_set uploadPipeSet;
@@ -254,21 +288,23 @@ void piece_manager_periodic(){
         exit(EXIT_FAILURE);
     }
 
-
+    printf("[Piece Manager Periodic] Checking to see if any new DL info came in\n");
     currentElem = downloadPipeList->next;
     while(currentElem != downloadPipeList){
         if(FD_ISSET(currentElem->sock, &downloadPipeSet)){
             char buffer[1];
             read(currentElem->sock, buffer, 1);
+            printf("[Piece Manager Periodic] Got code %c\n", buffer[0]);
 
             int currentSocket = currentElem->sock;
             uint32_t currentPieceIndex = currentElem->pieceIndex;
             int peerSocket = currentElem->peerSock;
             struct Peer * currentPeer = NULL;
             if(peerSocket != -1){
-                struct Peer * p = get_root_peer();
+                struct Peer * p = peer_manager_get_root_peer();
+                
                 while(p != NULL){
-                    if(currentPeer->socket == peerSocket){
+                    if(p->socket == peerSocket){
                         currentPeer = p;
                         break;
                     }
@@ -276,15 +312,15 @@ void piece_manager_periodic(){
                 }
             }
 
-            if(buffer[0] == 's'){
+            if(buffer[0] == 's') {
                 set_have_piece(myBitfield, currentPieceIndex);
-                int peerSocket = get_peer_socket_from_piece_index(currentPieceIndex);
                 currentElem = currentElem->prev;
+
                 remove_upload_download_pipe(0, currentSocket);
                 remove_requested_piece(currentPieceIndex);
 
-                if(peerSocket != -1){
-                    peer_manager_download_complete(currentPeer, currentPieceIndex);    
+                if(currentElem->peerSock != -1){
+                    peer_manager_upload_download_complete(0, currentPeer, currentPieceIndex);    
                 }
 
                 if(have_all_piece()){
@@ -313,7 +349,8 @@ void piece_manager_periodic(){
                 remove_requested_piece(currentPieceIndex);
 
                 if(peerSocket != -1){
-                    peer_manager_download_complete(currentPeer, currentPieceIndex);    
+                    // peer_manager_upload_download_complete(1, currentPeer, currentPieceIndex);  
+                    peer_manager_inform_disconnect(currentPeer);  
                 }
 
             }
@@ -395,8 +432,3 @@ bool have_all_piece(){
 
     return result;
 }
-
-void piece_manager_periodic() {
-    // TODO: All periodic code here
-    piece_manager_initiate_download();
-};

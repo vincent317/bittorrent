@@ -9,13 +9,15 @@
 #include <poll.h>
 #include <time.h>
 #include <math.h>
+#include <unistd.h>
 #include "shared.h"
 #include "cli.h"
 #include "torrent_runtime.h"
 #include "peer_manager.h"
 #include "piece_manager.h"
 
-#define PIECE_DOWNLOAD_SIZE 16000
+#define PIECE_DOWNLOAD_SIZE 15000
+#define MAX_PEERS 128
 
 /*
  * Periodic functions the peer manager need to do:
@@ -32,9 +34,12 @@ int complete; //number of peers with the entire file, i.e. seeders (integer)
 int incomplete; //number of non-seeder peers, aka "leechers" (integer)
 struct Peer *head_peer = NULL;
 int number_of_peers = 0;
-struct pollfd *peers_sockets;
+uint16_t readable_peers = 0;
+struct pollfd peers_sockets[MAX_PEERS];
 struct Peer *unchoked_four[4];
 Torrent * g_torrent;
+
+uint16_t TEMP_CURRENTLY_DOWNLOADING = 0;
 
 void print_ip_address(uint8_t *addr){
     printf("IP Address: ");
@@ -57,6 +62,24 @@ void print_peer(struct Peer *peer){
     //TODO: printbitfield
     putchar('\n');
 }
+
+/*
+    Create a fd set of all the file descriptors we have active
+    peers which we aren't downloading from. These are ones we
+    listen to incoming messages for.
+*/
+void peer_manager_update_fd_set(fd_set* fds) {
+    struct Peer* ptr = head_peer;
+    FD_ZERO(fds);
+
+    while (ptr != NULL) {
+        if (ptr->curr_dl != 1) {
+            FD_SET(ptr->socket, fds);
+        }
+
+        ptr = ptr->next;
+    }
+};
 
 void print_peer_list() {
     struct Peer *peer = head_peer;
@@ -250,6 +273,7 @@ int remove_from_peer_linked_list(struct Peer *target){
     return 0;
 }
 
+/*
 void temp_remove_from_peer_linked_list(struct Peer *target){
     struct Peer *cur = head_peer;
     struct Peer *prev = NULL;
@@ -274,25 +298,34 @@ void temp_remove_from_peer_linked_list(struct Peer *target){
         cur = cur->next;
     }
 }
+*/
 
-//Make the pollfd array matches to the sockets in the peers linked list
-void update_pollfd(){
-    if(peers_sockets != NULL){
-        free(peers_sockets);
-        peers_sockets = NULL;
+// Make the pollfd array matches to the sockets in the peers linked list
+// Returns # of readable peers
+void update_pollfd() {
+    uint16_t num_read_peers = 0;
+    struct Peer* ptr = head_peer;
+
+    while (ptr != NULL) {
+        if (
+            (
+                ptr->curr_dl_begin == 0 ||
+                ptr->curr_dl == 0
+            ) && ptr->socket > 0
+        ) {
+            // add a new pollfd for this peer
+            uint8_t i = num_read_peers;
+            peers_sockets[i].fd = ptr->socket;
+            peers_sockets[i].events = POLLIN;
+            
+            // inc number of peers to read from
+            num_read_peers++;
+        }
+
+        ptr = ptr->next;
     }
-    
-    if(number_of_peers > 0)
-        peers_sockets = malloc(sizeof(struct pollfd) * number_of_peers);
-    
-    int i = 0;
-    struct Peer *peer = head_peer;
-    while(peer != NULL){
-        peers_sockets[i].fd = peer->socket;
-        peers_sockets[i].events = POLLIN;
-        peer = peer->next;
-        i++;
-    }
+
+    readable_peers = num_read_peers;
 }
 
 int send_handshake_message(struct Peer *peer){
@@ -307,7 +340,7 @@ int send_handshake_message(struct Peer *peer){
     memcpy(send_string + 48, peer_id, 20);
     gettimeofday (&(peer->last_sent_message_time), NULL);
 
-    if(send_n_bytes(send_string, 68, peer->socket) == -1){ 
+    if (send_n_bytes(send_string, 68, peer->socket) == -1) { 
         close(peer->socket);
         remove_from_peer_linked_list(peer);
         update_pollfd();
@@ -316,12 +349,9 @@ int send_handshake_message(struct Peer *peer){
     }
 
     // send the bitfield
-    printf("sending bitfield\n");
     uint64_t bitfield_len = ceil(((double) g_torrent->num_pieces) / 8.0); // len in bytes
     uint8_t* bitfield_packet;
     bitfield_packet = calloc(4096, sizeof(uint8_t));
-
-    printf("BITFIELD LEN: %d\n\n", (int) (bitfield_len));
 
     uint32_t len_nbo = htobe32(1 + bitfield_len);
     memcpy(bitfield_packet + 0, &len_nbo, sizeof(uint32_t));
@@ -410,6 +440,7 @@ void send_have_message(struct Peer *peer, int piece_index){
 
 void peer_manager_upload_download_complete(uint8_t is_upload, struct Peer* peer, int piece_index){
     //put the peer back to the linked list and the pollfd
+    /*
     if(head_peer == NULL){
         head_peer = peer;
     }else{
@@ -424,17 +455,26 @@ void peer_manager_upload_download_complete(uint8_t is_upload, struct Peer* peer,
         }
         prev->next = cur;
     }
-    update_pollfd();
+    */
 
-    
-    uint32_t total_subpieces = ceil(g_torrent->piece_length / PIECE_DOWNLOAD_SIZE);    
+    if (!is_upload) {
+        printf("[Peer Manager] Finished downloading piece (or subpiece). index=%d\n",
+            piece_index);
+    }
+
+    uint32_t total_subpieces = ceil(g_torrent->piece_length / PIECE_DOWNLOAD_SIZE);
+    printf("Total subpieces: %d. Next subpiece: %d\n",
+        total_subpieces, peer->curr_dl_next_subpiece);
 
     // IF REMAINING SUBPIECES, DOWNLOAD THE NEXT SUBPIECE
     if (
         peer->curr_dl_next_subpiece < total_subpieces
     ) {
+        printf("[Peer Manager] Recursive subpiece download....!!!!!\n");
         peer_manager_begin_download(peer, piece_index);
         return;
+    } else {
+        printf("[Peer Manager] Downloaded all subpieces!\n");
     }
 
     // IF WE DOWNLOADED ALL PIECES, BROADCAST
@@ -452,6 +492,9 @@ void peer_manager_upload_download_complete(uint8_t is_upload, struct Peer* peer,
     peer->curr_dl = 0;
     peer->curr_dl_next_subpiece = 0;
     peer->curr_dl_piece_idx = 0;
+
+    // update the pollfd
+    update_pollfd();
 }
 
 void choking_algorithm(){
@@ -576,7 +619,6 @@ int start_peer_manager(Torrent *torrent){
 
                     if(peer->handshaked){
                         uint32_t length;
-                        print_ip_address(peer->address);
                         
                         if (read_n_bytes(&length, 4, peers_sockets[i].fd) == -1) {
                             peer_manager_inform_disconnect(peer);
@@ -592,7 +634,7 @@ int start_peer_manager(Torrent *torrent){
                             continue;
                         };
                         
-                        printf("********* Got message from peer! id=%d\n", ID);
+                        // printf("********* Got message from peer! id=%d\n", ID);
                         
                         // choke: <len=0001><id=0>
                         if (ID == 0) {
@@ -678,32 +720,54 @@ int start_peer_manager(Torrent *torrent){
                             //TODO: request mesasge
                         };
                         
-                        // piece: <len=0009+X><id=7><index><begin><block>
+                        // piece: <len=0009+X><id=7><index 4><begin 4><block X>
                         if(ID == 7) {
                             struct timeval timenow;
                             gettimeofday(&timenow, NULL);
 
-                            
-                            printf("Got id=7, piece message from peer\n");
+                            printf("Got id=7, piece message from peer (socket=%d)\n", peer->socket);
 
                             if((timenow.tv_sec - peer->download_req_sent_time.tv_sec > 5) && 
                                 peer->curr_dl == 1){
                                 peer->download_rate = 0;
                                 peer->curr_dl = 0;
+                                peer->curr_dl_begin = 0;
                                 peer->curr_dl_piece_idx = 0;
                                 peer->am_choking = 1;
                                 piece_manager_cancel_request(peer->curr_dl_piece_idx);
                                 send_choked_message(peer, 1);
                             }else{
                                 gettimeofday(&(peer->last_received_message_time), NULL);
-                                struct Peer *new = calloc(sizeof(struct Peer), 1);
-                                new->bitfield = calloc(peer->bitfield_length, 1);
-                                *new = *peer;
-                                memcpy(new->bitfield, peer->bitfield, peer->bitfield_length);
-                                //temporarility remove the peer so that the download manager can read the socket
-                                temp_remove_from_peer_linked_list(peer);
-                                number_of_peers--;
-                                piece_manager_create_download_manager(new, new->curr_dl_piece_idx, g_torrent->piece_length, 0);
+                                
+                                /*
+                                    struct Peer *new = calloc(sizeof(struct Peer), 1);
+                                    new->bitfield = calloc(peer->bitfield_length, 1);
+                                    *new = *peer;
+                                     memcpy(new->bitfield, peer->bitfield, peer->bitfield_length);
+                                    // temporarility remove the peer so that the download manager can read the socket
+                                    temp_remove_from_peer_linked_list(peer);
+                                    number_of_peers--;
+                                */
+
+                                uint32_t p_idx_nbo;
+                                uint32_t p_begin_nbo;
+
+                                if (
+                                    (read_n_bytes(&p_idx_nbo, 4, peer->socket) == -1) ||
+                                    (read_n_bytes(&p_begin_nbo, 4, peer->socket) == -1)
+                                ) {
+                                    continue;
+                                }
+
+                                peer->curr_dl_begin = 1;
+
+                                // pass off the socket to a download manager
+                                piece_manager_create_download_manager(
+                                    peer,
+                                    peer->curr_dl_piece_idx,
+                                    length - 9,
+                                    ntohl(p_begin_nbo)
+                                );
                             }
                         };
                         
@@ -756,7 +820,7 @@ int start_peer_manager(Torrent *torrent){
                             continue;
                         };
 
-                        printf("Handshaking success, get peerid %s\n", peerid);
+                        printf("Handshaking success, get peerid\n");
                         printf("Start sending  interested message\n");
                         send_interested_message(peer, 1);
                     }
@@ -850,11 +914,15 @@ int peer_manager_update_download_rate(struct Peer *peer, uint64_t download_rate)
 }
 
 int peer_manager_begin_download(struct Peer* peer, int pieceIndex) {
+    printf("[Peer Manager] beginning download of piece=%d\n", pieceIndex);
+    TEMP_CURRENTLY_DOWNLOADING = 1; // TODO : REMOVE
+
     if(peer->peer_choking) {
         printf("[Peer Manager] Error, cannot download from peer, they are choking us!\n");
+        print_ip_address(peer->address);
         return 0;
     }
-    
+
     // just in case someone is doing deep copy with the peer data structure
     struct Peer *cur = head_peer;
     while(cur != NULL){
@@ -882,14 +950,20 @@ int peer_manager_begin_download(struct Peer* peer, int pieceIndex) {
             peer->curr_dl_piece_idx == pieceIndex
         ) {
             begin += peer->curr_dl_next_subpiece * PIECE_DOWNLOAD_SIZE;
-            peer->curr_dl_next_subpiece++;
         }
 
+        peer->curr_dl_next_subpiece++;
         length = PIECE_DOWNLOAD_SIZE;
+
         printf("getting subpiece, [%d - %d), len=%d\n",
             (int) begin, (int) (begin + length), length);
     }
 
+    begin = htobe32(begin);
+
+    printf("here2\n");
+
+    printf("download length (for subpiece) = %d bytes\n", length);
     length = htobe32(length);
 
     uint8_t buffer[17];
@@ -902,7 +976,6 @@ int peer_manager_begin_download(struct Peer* peer, int pieceIndex) {
     if(send_n_bytes(buffer, 17, cur->socket) == -1){
         printf("[Peer Manager] During begin download, sending download request failed\n");
         remove_from_peer_linked_list(cur);
-        update_pollfd();
         number_of_peers --;
         return 0;
     } else {
@@ -912,8 +985,10 @@ int peer_manager_begin_download(struct Peer* peer, int pieceIndex) {
     
     gettimeofday(&(cur->last_sent_message_time), NULL);
     cur->curr_dl = 1;
+    cur->curr_dl_begin = 0;
     cur->curr_dl_piece_idx = pieceIndex;
     gettimeofday(&(cur->download_req_sent_time), NULL);
+    update_pollfd();
 
     return 1;
 }

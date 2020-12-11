@@ -4,19 +4,22 @@
 uint8_t BUFFER[32000];
 
 void create_download_manager(UploadDownloadManagerArgs* args) {
+    printf("====================================================================================\n");
     printf("[DL] Created download manager!\n");
     printf("[DL] reading %d bytes from socket=%d\n",
         args->len, args->peer->socket);
     
-    int bytes_read = read_n_bytes(&BUFFER[0], args->len, peer->socket);
+    int bytes_read = read_n_bytes(&BUFFER[0], args->len, args->peer->socket);
 
     if (bytes_read == -1) {
-        printf("[DL] Error reading data from peer!\n");
+        printf("[DL] Error reading data from peer! (bytes_read=%d)\n", bytes_read);
+        write(args->write_fd, "f", sizeof(char));
+        return;
     } else {
-        printf("[DL] Successfully read %d bytes from peer!\n");
+        printf("[DL] Successfully read %d bytes from peer!\n", bytes_read);
     }
 
-    write(args->write_fd, "f", sizeof(char));
+    write(args->write_fd, "s", sizeof(char));
 };
 
 void create_upload_manager(UploadDownloadManagerArgs* args) {
