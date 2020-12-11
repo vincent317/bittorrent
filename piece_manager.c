@@ -1,12 +1,10 @@
 
 #include "piece_manager.h"
 #include "piece_manager_data.h"
-#include "peer_manager.h"
-#include "torrent_runtime.h"
-#include "shared.h"
 
 uint8_t * myBitfield;
 int maxNumPiece;
+Torrent * torrentCopy;
 
 void piece_manager_startup(Torrent * torrent){
     // Set initial for list
@@ -16,6 +14,7 @@ void piece_manager_startup(Torrent * torrent){
     peerBitfieldList->next = peerBitfieldList;
     peerBitfieldList->prev = peerBitfieldList;
 */
+    torrentCopy = torrent;
 
     // Set initial for list
     init_download_pipe();
@@ -65,7 +64,7 @@ void piece_manager_startup(Torrent * torrent){
                 hexstr_to_sha1(pieceHash, pieceName);
 
                 // Get piece index from hash and set bitfield
-                int pieceIndex = torrent_hash_to_piece_index(pieceHash);
+                uint32_t pieceIndex = torrent_hash_to_piece_index(pieceHash);
                 if(pieceIndex >= 0){
                     set_have_piece(myBitfield, pieceIndex);
                 }
@@ -106,7 +105,7 @@ int piece_manager_get_my_bitfield_size() {
 void piece_manager_begin_upload_download(
     int is_upload,
     struct Peer* peer,
-    int pieceIndex,
+    uint32_t pieceIndex,
     int begin,
     int len
 ) {
@@ -132,27 +131,40 @@ void piece_manager_begin_upload_download(
 };
 
 void piece_manager_create_download_manager(
-    struct Peer* peer, int pieceIndex, int pieceSize, int begin
+    struct Peer* peer, uint32_t pieceIndex, int pieceSize, int begin
 ) {
     piece_manager_begin_upload_download(0, peer, pieceIndex, begin, pieceSize);
 };
 
 void piece_manager_create_upload_manager(
-    struct Peer* peer, int pieceIndex, int pieceSize, int begin
+    struct Peer* peer, uint32_t pieceIndex, int pieceSize, int begin
 ) {
     piece_manager_begin_upload_download(1, peer, pieceIndex, begin, pieceSize);
 };
 
-int piece_manager_first_download(uint8_t * bitfield){
-    for(int i = 0; i < maxNumPiece; i++){
-        if(!have_piece(myBitfield, i) && have_piece(bitfield, i)){
-            return i;
-        }
-    }
-}
 
 // Current code can request multiple piece to same peer if that piece is among the rarest.
 void piece_manager_initiate_download(){
+    struct Peer * p = get_root_peer();
+    int numOpen = 0;
+    while(p != NULL){
+        if(p->am_interested == 1 && p->peer_choking == 0){
+            numOpen++;
+        }
+        p = p->next;
+    }
+
+    struct OpenPeer * listOpenPeer = malloc(numOpen * sizeof(struct OpenPeer));
+    p = get_root_peer();
+    int index = 0;
+    while(p != NULL){
+        if(p->am_interested == 1 && p->peer_choking == 0){
+            listOpenPeer[index].peer = p;
+            index++;
+        }
+        p = p->next;
+    }
+
     struct Peer * smallest = NULL;      // The peer that have the minPiece that client will send request to
     int minOccur = INT_MAX;             // The number of peer that have the minPiece 
     int minPiece = -1;                  // The current rarest piece
@@ -164,10 +176,11 @@ void piece_manager_initiate_download(){
         if(!have_piece(myBitfield, i) && !currently_requesting_piece(i)){
             int chance = 6;
             int currentOccur = 0;
+            int pos;
             struct Peer * currentPeer = peer_manager_get_root_peer();
             struct Peer * currentSmallest = NULL;
 
-            while(currentPeer != NULL){
+            for(pos = 0; pos < numOpen; pos++){
                 // Client is interested and peer is not choking and 
                 // have current look at piece that client don't have
                 if(
@@ -180,12 +193,11 @@ void piece_manager_initiate_download(){
                     currentOccur++;
 
                     if(chance >= 5){
-                        currentSmallest = currentPeer;
+                        currentSmallest = listOpenPeer[pos].peer;
                     }
 
                     chance = rand() % 10; 
                 }
-                currentPeer = currentPeer->next;
             }
             if(minOccur > currentOccur && currentOccur != 0){
                 minOccur = currentOccur;
@@ -205,9 +217,11 @@ void piece_manager_initiate_download(){
     } else {
         printf("[Piece Manager] could not identify piece to download!\n", minPiece);
     }
+
+    free(listOpenPeer);
 }
 
-bool piece_manager_cancel_request(int pieceIndex){
+bool piece_manager_cancel_request(uint32_t pieceIndex){
     if(!is_currently_downloading_piece(pieceIndex)){
         remove_requested_piece(pieceIndex);        
         return true;
@@ -215,7 +229,7 @@ bool piece_manager_cancel_request(int pieceIndex){
     return false;
 }
 
-void piece_manager_check_upload_download(){
+void piece_manager_periodic(){
     struct timeval waitingTime;
     fd_set downloadPipeSet;
     fd_set uploadPipeSet;
@@ -244,14 +258,25 @@ void piece_manager_check_upload_download(){
     currentElem = downloadPipeList->next;
     while(currentElem != downloadPipeList){
         if(FD_ISSET(currentElem->sock, &downloadPipeSet)){
-            char buffer[100];
-            read(currentElem->sock, buffer, 19);
-            buffer[18] = '\0';
+            char buffer[1];
+            read(currentElem->sock, buffer, 1);
 
             int currentSocket = currentElem->sock;
-            int currentPieceIndex = currentElem->pieceIndex;
+            uint32_t currentPieceIndex = currentElem->pieceIndex;
+            int peerSocket = currentElem->peerSock;
+            struct Peer * currentPeer = NULL;
+            if(peerSocket != -1){
+                struct Peer * p = get_root_peer();
+                while(p != NULL){
+                    if(currentPeer->socket == peerSocket){
+                        currentPeer = p;
+                        break;
+                    }
+                    p = p->next;
+                }
+            }
 
-            if(strcmp(buffer, "download completed") == 0){
+            if(buffer[0] == 's'){
                 set_have_piece(myBitfield, currentPieceIndex);
                 int peerSocket = get_peer_socket_from_piece_index(currentPieceIndex);
                 currentElem = currentElem->prev;
@@ -259,31 +284,36 @@ void piece_manager_check_upload_download(){
                 remove_requested_piece(currentPieceIndex);
 
                 if(peerSocket != -1){
-                    struct Peer * currentPeer = peer_manager_get_root_peer();
-                    while(currentPeer != NULL){
-                        if(currentPeer->socket == peerSocket){
-                            peer_manager_upload_download_complete(0, currentPeer, currentPieceIndex);
-                            break;
-                        }
-                        currentPeer = currentPeer->next;
-                    }
+                    peer_manager_download_complete(currentPeer, currentPieceIndex);    
+                }
+
+                if(have_all_piece()){
+                    peer_manager_complete();
+                    file_assembler_begin(torrentCopy);
                 }
             }
-            else if(strcmp(buffer, "peer connect error") == 0){
-                int peerSocket = get_peer_socket_from_piece_index(currentPieceIndex);
+            else if(buffer[0] == 'r'){
+                uint8_t rateMsg[8];
+                int total = 0;
+                int gotNum = 0;
+                while(total < 8){
+                    gotNum = read (currentElem->sock, rateMsg + total, 8 - total);
+                    total += gotNum;
+                }
+                uint64_t downloadRate;
+                memcpy(&downloadRate, rateMsg, 8);
+
+                if(peerSocket != -1){
+                    peer_manager_update_download_rate(currentPeer, downloadRate);
+                }
+            }
+            else if(buffer[0] == 'f'){
                 currentElem = currentElem->prev;
                 remove_upload_download_pipe(0, currentSocket);
                 remove_requested_piece(currentPieceIndex);
 
                 if(peerSocket != -1){
-                    struct Peer * currentPeer = peer_manager_get_root_peer();
-                    while(currentPeer != NULL){
-                        if(currentPeer->socket == peerSocket){
-                            peer_manager_inform_disconnect(currentPeer);
-                            break;
-                        }
-                        currentPeer = currentPeer->next;
-                    }
+                    peer_manager_download_complete(currentPeer, currentPieceIndex);    
                 }
 
             }
@@ -321,17 +351,16 @@ void piece_manager_check_upload_download(){
             read(currentElem->sock, buffer, 19);
             int currentSocket = currentElem->sock;
             int peerSocket = currentElem->peerSock;
-            int currentPieceIndex = currentElem->pieceIndex;
+            uint32_t currentPieceIndex = currentElem->pieceIndex;
 
-            if(strcmp(buffer, "transmit completed") == 0){
+            if(strcmp(buffer, "s") == 0){
                 currentElem = currentElem->prev;
                 remove_upload_download_pipe(1, currentSocket);
             }
-            else if(strcmp(buffer, "peer connect error") == 0){
+            else if(strcmp(buffer, "f") == 0){
                 currentElem = currentElem->prev;
                 remove_upload_download_pipe(1, currentSocket);
                 
-                // TODO: GET THE PEER SOCKET TO GET THE PEER AND LET THE PEER MANAGER KNOW
                 if(peerSocket != -1){
                     struct Peer * currentPeer = peer_manager_get_root_peer();
                     while(currentPeer != NULL){
