@@ -1,7 +1,7 @@
 #include <string.h>
 #include "shared.h"
 #include <netinet/tcp.h>
-
+ #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 
@@ -51,7 +51,7 @@ int read_n_bytes(void *buffer, int bytes_expected, int read_socket) {
         bytes_read = recv(read_socket, buffer + bytes_received, bytes_expected-bytes_received, 0);
 
         if(bytes_read <= 0) {
-            printf("Error: Reading %d bytes from socket %d failed (code=%d)\n",
+            printf("[Shared] Error: Reading %d bytes from socket %d failed (code=%d)\n",
                 bytes_expected, read_socket, bytes_read);
             
             return -1;
@@ -70,7 +70,7 @@ int send_n_bytes(void *buffer, int bytes_expected, int send_socket){
     while(bytes_sent < bytes_expected){
         temp = send(send_socket, buffer + bytes_sent, bytes_expected-bytes_sent, 0);
         if(temp == -1){
-            fprintf(stderr, "send failed\n");
+            
             return -1;
         }
         bytes_sent += temp;

@@ -313,6 +313,7 @@ void piece_manager_periodic() {
                 }
 
                 if(have_all_piece()){
+                    printf("------ALL PIECES DOWNLOADED!\n------");
                     peer_manager_complete();
                     file_assembler_begin(torrentCopy);
                 }
