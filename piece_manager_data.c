@@ -49,8 +49,8 @@ void record_upload_download_pipe(int is_upload, int sock, int pieceIndex, int pe
 };
 
 void remove_upload_download_pipe(int is_upload, int sock) {
-    struct pairList * t = is_upload ? uploadintList : downloadintList;
-    while(t->next != uploadintList){
+    struct pairList * t = is_upload ? uploadintList->next : downloadintList->next;
+    while(t != uploadintList){
         if(t->sock == sock){
             t->prev->next = t->next;
             t->next->prev = t->prev;
@@ -67,11 +67,12 @@ struct pairList * get_download_pipe(){
 }
 
 bool is_currently_downloading_piece(int pieceIndex){
-    struct pairList * t = downloadintList;
-    while(t->next != downloadintList){
+    struct pairList * t = downloadintList->next;
+    while(t != downloadintList){
         if(t->pieceIndex == pieceIndex){
             return true;
         }
+        t = t->next;
     }
     return false;
 }
@@ -100,8 +101,8 @@ void add_requested_piece(int sock, int pieceIndex){
 // Call when got the piece or issue with connection 
 // so no longer can get the piece
 void remove_requested_piece(int pieceIndex){
-    struct pairList * t = requestedPieceList;
-    while(t->next != requestedPieceList){
+    struct pairList * t = requestedPieceList->next;
+    while(t != requestedPieceList){
         if(t->pieceIndex == pieceIndex){
             t->prev->next = t->next;
             t->next->prev = t->prev;
@@ -113,8 +114,8 @@ void remove_requested_piece(int pieceIndex){
 }
 
 bool currently_requesting_piece(int pieceIndex){
-    struct pairList * t = requestedPieceList;
-    while(t->next != requestedPieceList){
+    struct pairList * t = requestedPieceList->next;
+    while(t != requestedPieceList){
         if(t->pieceIndex == pieceIndex){
             return true;
         }
@@ -124,23 +125,12 @@ bool currently_requesting_piece(int pieceIndex){
 }
 
 bool currently_requesting_piece_from(int sock){
-    struct pairList * t = requestedPieceList;
-    while(t->next != requestedPieceList){
+    struct pairList * t = requestedPieceList->next;
+    while(t != requestedPieceList){
         if(t->sock == sock){
             return true;
         }
         t = t->next;
     }
     return false;
-}
-
-int get_peer_socket_from_piece_index(int pieceIndex){
-    struct pairList * t = requestedPieceList;
-    while(t->next != requestedPieceList){
-        if(t->pieceIndex == pieceIndex){
-            return t->sock;
-        }
-        t = t->next;
-    }
-    return -1;   
 }

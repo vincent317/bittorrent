@@ -10,19 +10,19 @@
     It does NOT have any state date related to the current progress on downloading
     a torrent or otherwise
 */
-typedef struct {
+typedef struct TorrentFilePath {
     struct TorrentFilePath* next;
     char component[256];
 } TorrentFilePath;
 
-typedef struct {
+typedef struct TorrentFile {
     struct TorrentFile* next_file;
     TorrentFilePath* path;
     uint64_t file_len;
     char full_path[2048];
 } TorrentFile;
 
-typedef struct {
+typedef struct Torrent {
     uint8_t info_hash[20];
     const char* hash_str;
     const char* tracker_url;

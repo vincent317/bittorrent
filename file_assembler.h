@@ -3,7 +3,9 @@
 #define FILE_ASSEMBLER_H_INCLUDED
 
 #include <sys/types.h> 
-#include <sys/stat.h> 
+#include <sys/stat.h>
+#include <unistd.h>
+#include <errno.h>
 
 #include "shared.h"
 #include "torrent_runtime.h"

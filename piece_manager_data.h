@@ -51,6 +51,4 @@ bool currently_requesting_piece(int pieceIndex);
 // Check if a ongoing request had been send to the given socket
 bool currently_requesting_piece_from(int sock);
 
-int get_peer_socket_from_piece_index(int pieceIndex);
-
 #endif
