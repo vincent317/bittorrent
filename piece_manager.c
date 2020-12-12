@@ -174,7 +174,7 @@ void piece_manager_initiate_download(){
     for(int i = 0; i < maxNumPiece; i++){
         // Check that client don't have piece and had not send a request for the piece
         if(!have_piece(myBitfield, i) && !currently_requesting_piece(i)){
-            // printf("checking for piece %d\n", i);
+            // printf("checking for piece %d\n", i);            
             int chance = 6;
             int currentOccur = 0;
             int pos;
@@ -185,10 +185,10 @@ void piece_manager_initiate_download(){
                 // Client is interested and peer is not choking and 
                 // have current look at piece that client don't have
                 if(
-                    !currently_requesting_piece_from(listOpenPeer[i].peer->socket) && 
-                    !(listOpenPeer[i].peer)->curr_dl &&
-                    (listOpenPeer[i].peer)->peer_choking == 0 && 
-                    have_piece((listOpenPeer[i].peer)->bitfield, i)
+                    !currently_requesting_piece_from(listOpenPeer[pos].peer->socket) && 
+                    !(listOpenPeer[pos].peer)->curr_dl &&
+                    (listOpenPeer[pos].peer)->peer_choking == 0 && 
+                    have_piece((listOpenPeer[pos].peer)->bitfield, i)
                 ) {
                     currentOccur++;
 
@@ -202,7 +202,6 @@ void piece_manager_initiate_download(){
                 }
             }
             if(minOccur > currentOccur && currentOccur != 0){
-                printf("found min occur!\n");
                 minOccur = currentOccur;
                 smallest = currentSmallest;
                 minPiece = i;
@@ -218,10 +217,16 @@ void piece_manager_initiate_download(){
             printf("-- error: piece manager selected NULL peer!\n");
         }
 
+        printf("Aaaaa\n");
+
         peer_manager_begin_download(smallest, minPiece);
+
+                printf("Bbbbbbb\n");
 
         // Track piece that have send request for
         add_requested_piece(smallest->socket, minPiece);
+
+                printf("Ccccc\n");
     } else {
         printf("[Piece Manager] could not identify piece to download!\n");
     }
