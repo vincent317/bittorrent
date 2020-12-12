@@ -161,7 +161,6 @@ void parse_peers_string(const char *string, int tn){
         uint8_t ip_arr[4];
         memcpy(ip_arr, string + i*6, 4);
 
-        print_ip_address(ip_arr);
         insert_peerlist_ifnotexists(ip_arr, port);
 
         if (i > 5) break;
@@ -307,21 +306,12 @@ void update_pollfd() {
     struct Peer* ptr = head_peer;
 
     while (ptr != NULL) {
-        if (
-            (
-                ptr->curr_dl_begin == 0 ||
-                ptr->curr_dl == 0
-            ) && ptr->socket > 0
-        ) {
-            // add a new pollfd for this peer
-            uint8_t i = num_read_peers;
-            peers_sockets[i].fd = ptr->socket;
-            peers_sockets[i].events = POLLIN;
+        if ((ptr->curr_dl_begin == 0 || ptr->curr_dl == 0) && ptr->socket > 0){
+            peers_sockets[num_read_peers].fd = ptr->socket;
+            peers_sockets[num_read_peers].events = POLLIN;
             
-            // inc number of peers to read from
             num_read_peers++;
         }
-
         ptr = ptr->next;
     }
 
@@ -439,24 +429,6 @@ void send_have_message(struct Peer *peer, int piece_index){
 }
 
 void peer_manager_upload_download_complete(uint8_t is_upload, struct Peer* peer, int piece_index){
-    //put the peer back to the linked list and the pollfd
-    /*
-    if(head_peer == NULL){
-        head_peer = peer;
-    }else{
-        struct Peer *prev = NULL;
-        struct Peer *cur = head_peer;
-
-        while(cur != NULL){
-            if(memcmp(cur->address, peer->address, 4) == 0 && cur->port == peer->port)
-                return;
-            prev = cur;
-            cur = cur->next;
-        }
-        prev->next = cur;
-    }
-    */
-
     if (!is_upload) {
         printf("[Peer Manager] Finished downloading piece (or subpiece). index=%d\n",
             piece_index);
@@ -610,7 +582,7 @@ int start_peer_manager(Torrent *torrent){
     update_pollfd();
 
     while(1){
-        if (poll(peers_sockets, number_of_peers, 0) > 0) {
+        if (poll(peers_sockets, readable_peers, 0) > 0) {
             int n = number_of_peers;
             for(int i = 0; i<n; i++){
                 if(peers_sockets[i].revents == POLLIN){
@@ -752,22 +724,20 @@ int start_peer_manager(Torrent *torrent){
                                 uint32_t p_idx_nbo;
                                 uint32_t p_begin_nbo;
 
-                                if (
-                                    (read_n_bytes(&p_idx_nbo, 4, peer->socket) == -1) ||
-                                    (read_n_bytes(&p_begin_nbo, 4, peer->socket) == -1)
-                                ) {
-                                    continue;
+                                if ((read_n_bytes(&p_idx_nbo, 4, peer->socket) == -1) ||
+                                    (read_n_bytes(&p_begin_nbo, 4, peer->socket) == -1)){
+                                    remove_from_peer_linked_list(peer);
+                                    number_of_peers --;
+                                }else{
+                                    peer->curr_dl_begin = 1;
+                                    // pass off the socket to a download manager
+                                    piece_manager_create_download_manager(
+                                        peer,
+                                        peer->curr_dl_piece_idx,
+                                        length - 9,
+                                        ntohl(p_begin_nbo)
+                                    );
                                 }
-
-                                peer->curr_dl_begin = 1;
-
-                                // pass off the socket to a download manager
-                                piece_manager_create_download_manager(
-                                    peer,
-                                    peer->curr_dl_piece_idx,
-                                    length - 9,
-                                    ntohl(p_begin_nbo)
-                                );
                             }
                         };
                         
@@ -844,6 +814,7 @@ int start_peer_manager(Torrent *torrent){
         if(current_time.tv_sec - periodic_function_time.tv_sec > 1){
             printf("---- [running piece manager periodic]\n");
             piece_manager_periodic();
+            printf("dd\n");
             printf("---- [running torrent periodic]\n");
             torrent_runtime_periodic();
             printf("---- [running cli periodic]\n");
@@ -960,8 +931,6 @@ int peer_manager_begin_download(struct Peer* peer, int pieceIndex) {
     }
 
     begin = htobe32(begin);
-
-    printf("here2\n");
 
     printf("download length (for subpiece) = %d bytes\n", length);
     length = htobe32(length);
