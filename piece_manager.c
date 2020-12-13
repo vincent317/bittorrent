@@ -363,11 +363,24 @@ void piece_manager_periodic() {
             }
 
             if(buffer[0] == 's') {
-                set_have_piece(myBitfield, currentPieceIndex);
-                currentElem = currentElem->prev;
+                uint32_t totalRemainingByte = torrentCopy->length - (currentElem->pieceIndex * torrentCopy->piece_length);
+                uint32_t length = torrentCopy->piece_length < totalRemainingByte ? torrentCopy->piece_length : totalRemainingByte;
+                uint32_t total_subpieces = ceil(length / PIECE_DOWNLOAD_SIZE);
 
+                currentElem = currentElem->prev;
                 remove_upload_download_pipe(0, currentPipe);
+
+                // Downloaded the whole piece
+             /*   if(!(currentPeer->curr_dl_next_subpiece < total_subpieces)){
+                    set_have_piece(myBitfield, currentPieceIndex);
+                    remove_requested_piece(currentPieceIndex);
+                }
+                */
+               
+                // Delete below when the above is uncommented
+                set_have_piece(myBitfield, currentPieceIndex);
                 remove_requested_piece(currentPieceIndex);
+                
 
                 if(peerSocket != -1){
                     peer_manager_upload_download_complete(0, currentPeer, currentPieceIndex);    
@@ -438,24 +451,31 @@ void piece_manager_periodic() {
             read(currentElem->sock, buffer, 19);
             int currentPipe = currentElem->sock;
             int peerSocket = currentElem->peerSock;
+            int currentPieceIndex = currentElem->pieceIndex;
+
+            struct Peer * currentPeer = NULL;
+            if(peerSocket != -1){
+                struct Peer * p = peer_manager_get_root_peer();
+                while(p != NULL){
+                    if(p->socket == peerSocket){
+                        currentPeer = p;
+                        break;
+                    }
+                    p = p->next;
+                }
+            }
 
             if(strcmp(buffer, "s") == 0){
                 currentElem = currentElem->prev;
                 remove_upload_download_pipe(1, currentPipe);
+                peer_manager_upload_download_complete(1, currentPeer, currentPieceIndex);    
             }
             else if(strcmp(buffer, "f") == 0){
                 currentElem = currentElem->prev;
                 remove_upload_download_pipe(1, currentPipe);
-                
+
                 if(peerSocket != -1){
-                    struct Peer * currentPeer = peer_manager_get_root_peer();
-                    while(currentPeer != NULL){
-                        if(currentPeer->socket == peerSocket){
-                            peer_manager_inform_disconnect(currentPeer);
-                            break;
-                        }
-                        currentPeer = currentPeer->next;
-                    }
+                    peer_manager_inform_disconnect(currentPeer);
                 }
             }
             else{
