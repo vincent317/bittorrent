@@ -14,9 +14,30 @@ void piece_manager_startup(Torrent * torrent){
     init_upload_pipe();
     init_requested_piece();
 
+    // Create folder for pieces if don't exist
+    char cwd1[PATH_MAX];
+    if (getcwd(cwd1, sizeof(cwd1)) != NULL) {
+        printf("1 Current working dir: %s\n", cwd1);
+    }
+    
+    mkdir(".torrent_data", 0777);
+    chdir(".torrent_data");
+    mkdir(torrent->hash_str, 0777);
+    chdir(torrent->hash_str);
+    mkdir("temp", 0777);
+    chdir("../../");
+
+    char cwd2[PATH_MAX];
+    if (getcwd(cwd2, sizeof(cwd2)) != NULL) {
+        printf("2 Current working dir: %s\n", cwd2);
+    }    
+
+
 //    uint32_t fileLen = torrent->length;        // Get the length field in the torrent file
 //    uint32_t pieceLen = torrent->piece_length;      // Get the piece length in the torrent file
     printf("HERE! num pieces: %ld\n", torrent->num_pieces);
+
+
 
     maxNumPiece = torrent->num_pieces;
     myBitfield = malloc((int) ceil((double) maxNumPiece / 8));
@@ -48,7 +69,7 @@ void piece_manager_startup(Torrent * torrent){
 
                 if (strlen(pieceName) != 40) {
                     printf("ERROR: Corrupted piece cache. Piece length is not 40, name: '%s'!", pieceName);
-                    exit(1);
+                    continue;
                 };
 
                 // Convert pieceHash to byte
