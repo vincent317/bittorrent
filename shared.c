@@ -16,14 +16,14 @@ void print_bitfield(uint8_t *bitfield, int length){
     }
 }
 
-const char* sha1_to_hexstr(uint8_t* sha1_hash_binary) {
+char* sha1_to_hexstr(uint8_t* sha1_hash_binary) {
     char* hash_hex = calloc(sizeof(char) * 41, sizeof(char));
 
     for (size_t i=0; 20 > i; i++) {
 		sprintf(&hash_hex[2*i], "%02x", sha1_hash_binary[i]);
 	}
 
-    return (const char*) hash_hex;
+    return (char*) hash_hex;
 };
 
 // Converts a 40-char string into 20-byte hash
@@ -45,7 +45,7 @@ void hexstr_to_sha1(uint8_t* dst_hash, char* hex_str){
 int read_n_bytes(void *buffer, int bytes_expected, int read_socket) {
     int bytes_received = 0;
     int bytes_read = 0;
-    int i = 0;
+    //int i = 0;
 
     while(bytes_received < bytes_expected) {
         bytes_read = recv(read_socket, buffer + bytes_received, bytes_expected-bytes_received, 0);

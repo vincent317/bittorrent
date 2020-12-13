@@ -267,10 +267,11 @@ void piece_manager_initiate_download(){
     uint16_t num_unchoked = 0;
 
     while (ptr != NULL) {
-        if (ptr->peer_choking == 0)
+        if (ptr->peer_choking == 0){
             print_bitfield(ptr->bitfield, ptr->bitfield_length);
             printf("Peer Socket %d\n", ptr->socket);
             num_unchoked++;
+        }
         
         ptr = ptr->next;
     }

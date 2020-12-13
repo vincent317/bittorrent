@@ -10,6 +10,14 @@ void file_assembler_begin(Torrent * torrent){
     uint64_t pieceIndex = 0;
     uint32_t pieceSize = torrent->piece_length;
 
+    if(currentFile == NULL){
+        printf("CURRENT FILE IS EMPTY\n");
+    }
+    else{
+        printf("GETTING FILEPATH %s\n", currentFile->full_path);
+
+    }
+
     while(currentFile != NULL){
         FILE * fp;
         FILE * piece;
@@ -31,18 +39,11 @@ void file_assembler_begin(Torrent * torrent){
             path = path->next;
         }
         chdir(backPath);
+
+
+        printf("Create file %s\n", currentFile->full_path);
+        fp = fopen(currentFile->full_path, "w");
         
-
-        printf("Check multiple files %d\n", torrent->multiple_files);
-        if(torrent->multiple_files == 0){
-            printf("Create file %s\n", torrent->name);
-            fp = fopen(torrent->name, "w");    
-        }
-        else{
-            printf("Create file %s\n", currentFile->full_path);
-            fp = fopen(currentFile->full_path, "w");
-        }
-
         if(fp == NULL){
             printf("Fail created file\n");
         }
