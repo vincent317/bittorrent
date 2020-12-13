@@ -20,6 +20,7 @@ void piece_manager_startup(Torrent * torrent){
 
     maxNumPiece = torrent->num_pieces;
     myBitfield = malloc((int) ceil((double) maxNumPiece / 8));
+    memset(myBitfield, 0, (int) ceil((double) maxNumPiece / 8));
 
 
     // Bitfield - 1 represent have, 0 represent don't have
@@ -77,6 +78,10 @@ int piece_manager_am_interested(struct Peer * peer){
     }
 
     return result;
+}
+
+void piece_manager_cancel_request_for_peer(struct Peer *  peer){
+    remove_request_from_peer(peer->socket);
 }
 
 uint8_t * piece_manager_get_my_bitfield() {
@@ -140,10 +145,22 @@ void piece_manager_create_upload_manager(
 // Current code can request multiple piece to same peer if that piece is among the rarest.
 void piece_manager_initiate_download(){
     // TODO: Remove
-    if (TEMP_CURRENTLY_DOWNLOADING) {
+    printf("Check TEMP_CURRENTLY_DOWNLOADING %d\n", TEMP_CURRENTLY_DOWNLOADING);
+    print_bitfield(myBitfield, (int) ceil((double) maxNumPiece / 8));
+    printf("\n");
+    struct Peer * peerList = peer_manager_get_root_peer();
+
+    bool anyInterested = false;
+    while (peerList != NULL)
+    {
+        anyInterested = anyInterested || piece_manager_am_interested(peerList);
+        peerList = peerList->next;
+    }
+    printf("Is there any peer that I am still interested in? %d\n", anyInterested);
+   /* if (TEMP_CURRENTLY_DOWNLOADING) {
         printf("Download in progress....\n");
         return;
-    }
+    }*/
     
     struct Peer * p = peer_manager_get_root_peer();
     int numOpen = 0;
@@ -173,6 +190,13 @@ void piece_manager_initiate_download(){
 
     for(int i = 0; i < maxNumPiece; i++){
         // Check that client don't have piece and had not send a request for the piece
+        if(i == 85){
+            printf("Checking 86th piece\n");
+            printf("Do I not have the piece %d\n Am I currently requesting the piece? %d\n Peer Sock %d\n ",
+            !have_piece(myBitfield, i),
+            !currently_requesting_piece(i),
+            get_peer_socket_from_piece(i));
+        }
         if(!have_piece(myBitfield, i) && !currently_requesting_piece(i)){
             // printf("checking for piece %d\n", i);            
             int chance = 6;
@@ -184,6 +208,14 @@ void piece_manager_initiate_download(){
             for(pos = 0; pos < numOpen; pos++){
                 // Client is interested and peer is not choking and 
                 // have current look at piece that client don't have
+                if(i == 85){
+                    printf("Had not requesting from this peer %d \n not downloading from this peer %d \n peer is not choking %d \n peer have this piece %d\n", 
+                    !currently_requesting_piece_from(listOpenPeer[pos].peer->socket),
+                    !(listOpenPeer[pos].peer)->curr_dl,
+                    (listOpenPeer[pos].peer)->peer_choking == 0,
+                    have_piece((listOpenPeer[pos].peer)->bitfield, i));
+                }
+
                 if(
                     !currently_requesting_piece_from(listOpenPeer[pos].peer->socket) && 
                     !(listOpenPeer[pos].peer)->curr_dl &&
@@ -236,6 +268,8 @@ void piece_manager_initiate_download(){
 
     while (ptr != NULL) {
         if (ptr->peer_choking == 0)
+            print_bitfield(ptr->bitfield, ptr->bitfield_length);
+            printf("Peer Socket %d\n", ptr->socket);
             num_unchoked++;
         
         ptr = ptr->next;
