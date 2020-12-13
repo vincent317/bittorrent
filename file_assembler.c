@@ -25,11 +25,30 @@ void file_assembler_begin(Torrent * torrent){
 
             strcat(backPath, "../");
             chdir(path->component);
+
+            printf("Create folder %s\n", path->component);
+
             path = path->next;
         }
         chdir(backPath);
         
-        fp = fopen(currentFile->full_path, "w");
+
+        printf("Check multiple files %d\n", torrent->multiple_files);
+        if(torrent->multiple_files == 0){
+            printf("Create file %s\n", torrent->name);
+            fp = fopen(torrent->name, "w");    
+        }
+        else{
+            printf("Create file %s\n", currentFile->full_path);
+            fp = fopen(currentFile->full_path, "w");
+        }
+
+        if(fp == NULL){
+            printf("Fail created file\n");
+        }
+        else{
+            printf("Success created file\n");
+        }
 
         while(total < upperLimit){
             char * filename = sha1_to_hexstr(torrent->piece_hashes[pieceIndex]);
@@ -40,7 +59,16 @@ void file_assembler_begin(Torrent * torrent){
             strcat(filePath, torrent->hash_str);
             strcat(filePath, "/");
             strcat(filePath, filename);
+
+
+            printf("Try to open piece %s\n", filePath);
             piece = fopen(filePath, "r");
+            if(piece == NULL){
+                printf("Fail opening piece %s\n", filePath);
+            }
+            else{
+                printf("Success opening piece %s\n", filePath);
+            }
 
             if(piece == NULL){
                 int errnum = errno;

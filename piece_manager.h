@@ -62,6 +62,9 @@ void piece_manager_startup(Torrent * torrent);
 // Check if client is interested in peer
 int piece_manager_am_interested(struct Peer * peer);
 
+// Remove request send to this peer
+void piece_manager_cancel_request_for_peer(struct Peer *  peer);
+
 // Return the client bitfield
 uint8_t * piece_manager_get_my_bitfield();
 
@@ -97,5 +100,7 @@ void piece_manager_periodic();
 
 // Check if all pieces had been downloaded
 bool have_all_piece();
+
+
 
 #endif

@@ -113,6 +113,20 @@ void remove_requested_piece(int pieceIndex){
     }
 }
 
+void remove_request_from_peer(int sock){
+    struct pairList * t = requestedPieceList->next;
+    while(t != requestedPieceList){
+        if(t->peerSock == sock){
+            t->prev->next = t->next;
+            t->next->prev = t->prev;
+            free(t);
+            break;
+        }
+        t = t->next;
+    }
+}
+
+
 bool currently_requesting_piece(int pieceIndex){
     struct pairList * t = requestedPieceList->next;
     while(t != requestedPieceList){
@@ -133,4 +147,15 @@ bool currently_requesting_piece_from(int sock){
         t = t->next;
     }
     return false;
+}
+
+int get_peer_socket_from_piece(int pieceIndex){
+    struct pairList * t = requestedPieceList->next;
+    while(t != requestedPieceList){
+        if(t->pieceIndex == pieceIndex){
+            return t->peerSock;
+        }
+        t = t->next;
+    }
+    return -1;
 }

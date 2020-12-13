@@ -45,10 +45,16 @@ void add_requested_piece(int sock, int pieceIndex);
 // so no longer can get the piece
 void remove_requested_piece(int pieceIndex);
 
+// Remove the request to the peer with the given sock
+void remove_request_from_peer(int sock);
+
 // Check if given piece index had a request send for
 bool currently_requesting_piece(int pieceIndex);
 
 // Check if a ongoing request had been send to the given socket
 bool currently_requesting_piece_from(int sock);
+
+// find the peer socket that is used to request the given pieceIndex
+int get_peer_socket_from_piece(int pieceIndex);
 
 #endif
