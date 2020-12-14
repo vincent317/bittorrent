@@ -5,7 +5,7 @@ uint8_t * myBitfield;
 int maxNumPiece;
 Torrent * torrentCopy;
 
-void piece_manager_startup(Torrent * torrent){
+void piece_manager_startup(Torrent * torrent) {
     // Set initial for list
     torrentCopy = torrent;
 
@@ -47,37 +47,61 @@ void piece_manager_startup(Torrent * torrent){
     strcat(folderPath, torrent->hash_str);
    // strcat(folderPath, "/");
 
-    
+    int pieces_loaded = 0;
+
     DIR *folder;
     struct dirent *file;
     if((folder = opendir(folderPath)) != NULL){
         while((file = readdir(folder)) != NULL){
             if(strlen(file->d_name) > 5){
-                char pieceName[41];
-                memset(pieceName, 0, sizeof(char) * 41);
-                int i = (int) (strrchr(file->d_name, '.') - file->d_name);
-                i = i <= 40 ? i : 40;
-                memcpy(pieceName, file->d_name, i);
-                pieceName[i] = '\0';
+                char pieceName[255];
+                memset(pieceName, 0, sizeof(char) * 255);
 
-                if (strlen(pieceName) != 40) {
-                    DEBUG_PRINTF("ERROR: Corrupted piece cache. Piece length is not 40, name: '%s'!", pieceName);
+                if (strlen(file->d_name) != 40) {
                     continue;
-                };
+                }
+
+                memcpy(pieceName, file->d_name, 40);
 
                 // Convert pieceHash to byte
                 uint8_t pieceHash[20];
                 hexstr_to_sha1(pieceHash, pieceName);
 
                 // Get piece index from hash and set bitfield
-                double pieceIndex = torrent_hash_to_piece_index(pieceHash);
+                int pieceIndex = torrent_hash_to_piece_index(pieceHash);
+
+                if (pieceIndex < 0) {
+                    printf("Error: corrupted piece found; unknown piece hash.\n");
+                    continue;
+                }
+
+                // Validate the hash
+                char piece_path[1024];
+                piece_path[0] = 0;
+                get_piece_filename(piece_path, pieceIndex, 0);
+
+                uint8_t* piece_hash = sha1_file(piece_path);
+                uint8_t* piece_hexstr = sha1_to_hexstr(piece_hash);
+
+                if (strcmp(piece_hexstr, pieceName) != 0) {
+                    printf("Error: corrupted piece=%d found; hash doesn't match. skipping.\n",
+                        pieceIndex);
+                    
+                    continue;
+                }
+
+                // Set the bitfield
                 if(pieceIndex >= 0){
                     set_have_piece(myBitfield, pieceIndex);
+                    pieces_loaded++;
                 }
             }
         }
         closedir(folder);
     }
+
+    printf("Loaded %d/%d pieces from storage\n",
+        pieces_loaded, g_torrent->num_pieces);
 }
 
 int piece_manager_am_interested(struct Peer * peer){
@@ -284,7 +308,7 @@ void piece_manager_initiate_download() {
         ptr = ptr->next;
     }
 
-    DEBUG_PRINTF("- %d peers UNCHOKING us\n", num_unchoked);
+    printf("- %d peers UNCHOKING us\n", num_unchoked);
 
     free(listOpenPeer);
 }
@@ -359,25 +383,38 @@ void piece_manager_periodic() {
 
                 // Downloaded the whole piece
                 if(!(currentPeer->curr_dl_next_subpiece < total_subpieces)) {
-                    printf("[Piece Manager] Fully downloaded piece=%d\n",
-                        currentPieceIndex);
+                    remove_requested_piece(currentPieceIndex);
 
-                    // validate the piece SHA hash
-                    // TODO
-
-                    // copy the temporary piece over; move to permanant storage
+                    // Get file names
                     char piece_perm_filename[1024] = {0};
                     char piece_temp_filename[1024] = {0};
                     get_piece_filename(piece_perm_filename, currentPieceIndex, 0);
                     get_piece_filename(piece_temp_filename, currentPieceIndex, 1);
 
+                    // Validate SHA1 hash
+                    uint8_t* real_piece_hash = g_torrent->piece_hashes[currentPieceIndex];
+                    uint8_t* real_piece_hash_hexstr = sha1_to_hexstr(real_piece_hash);
+
+                    uint8_t* dl_piece_hash = sha1_file(piece_temp_filename);
+                    if (!dl_piece_hash) continue;
+                    uint8_t* dl_piece_hexstr = sha1_to_hexstr(dl_piece_hash);
+
+                    if (strcmp(dl_piece_hexstr, real_piece_hash_hexstr) != 0) {
+                        printf("[Piece Manager] - Error, dowload for piece=%d corrupted. Hash does not match!\n",
+                            currentPieceIndex);
+
+                        continue;
+                    } else {
+                        printf("[Piece Manager] Downloaded piece %d. Hashes validated! Copying to piece permanant storage\n",
+                            currentPieceIndex);
+                    }
+                    
+                    // Copy to permanant storage
                     if (cp(piece_perm_filename, piece_temp_filename) != 0) {
                         printf("\n[Piece Manager] ERROR!!! Unable to store piece file!!!!\n\n");
                     } else {
                         set_have_piece(myBitfield, currentPieceIndex);
                     }
-                    
-                    remove_requested_piece(currentPieceIndex);
                 }
                
                 // Delete below when the above is uncommented

@@ -64,6 +64,7 @@ int send_n_bytes(void* buffer, int bytes, int sock);
 
 void get_piece_filename(char* dst, int piece_index, int temp);
 int cp(const char *to, const char *from);
+uint8_t* sha1_file(char* file_path);
 
 /*
     Converts a SHA-1 hash (20 bytes) into a string

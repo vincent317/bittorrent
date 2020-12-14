@@ -6,7 +6,7 @@
 #include "bencode.h"
 
 // Given a hash, this function returns the index of the piece
-uint32_t torrent_hash_to_piece_index(uint8_t* hash);
+int torrent_hash_to_piece_index(uint8_t* hash);
 
 /*
     Called by the CLI when the user wants to download a new torrent

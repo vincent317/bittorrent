@@ -5,8 +5,6 @@
     NOTE: Do not use chdir since chdir is process wide!
 */
 
-uint8_t BUFFER[256000];
-
 void create_download_manager(UploadDownloadManagerArgs* args) {
     DEBUG_PRINTF("[Download Manager] ==========================\n");
     /*  DEBUG_PRINTF("[Download Manager] Reading... piece=%d, begin=%d, len=%d\n",
@@ -15,6 +13,7 @@ void create_download_manager(UploadDownloadManagerArgs* args) {
     /* DEBUG_PRINTF("[DL] reading %d bytes from socket=%d\n",
         args->len, args->peer->socket); */
     
+    uint8_t* BUFFER = malloc(256000 * sizeof(uint8_t));
     int bytes_read = read_n_bytes(&BUFFER[0], args->len, args->peer->socket);
 
     if (bytes_read == -1) {
@@ -40,11 +39,13 @@ void create_download_manager(UploadDownloadManagerArgs* args) {
 
         fwrite(&BUFFER[0], 1, (size_t) bytes_read, piece_tmp);
         fclose(piece_tmp);
+
         DEBUG_PRINTF("[Download Manager] Read & wrote piece data. %d bytes piece=%d -> temp file. Filesize=%d.\n",
             bytes_read, args->pieceIndex, (int) (cursor_pos + bytes_read));
+        
+        write(args->write_fd, "s", sizeof(char));
+        return;
     }
-
-    write(args->write_fd, "s", sizeof(char));
 };
 
 void create_upload_manager(UploadDownloadManagerArgs* args) {

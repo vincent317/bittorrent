@@ -100,6 +100,34 @@ int send_n_bytes(void *buffer, int bytes_expected, int send_socket){
 	return bytes_sent;
 };
 
+uint8_t* sha1_file(char* file_path) {
+    FILE* fp = fopen(file_path, "r");
+
+    if (!fp) {
+        printf("error! could not open file '%s'\n", file_path);
+        return NULL;
+    }
+
+    // get file size
+    fseek(fp, 0L, SEEK_END);
+    long int sz = ftell(fp);
+    rewind(fp);
+
+    // read in the data
+    uint8_t* file_data = malloc(sizeof(uint8_t) * sz);
+    fread(file_data, sz, 1, fp);
+    fclose(fp);
+
+    // hash the data
+    uint8_t* file_hash = malloc(sizeof(uint8_t) * 20);
+    struct sha1sum_ctx* ctx = sha1sum_create(NULL, 0);            
+    sha1sum_finish(ctx, file_data, sizeof(uint8_t) * sz, file_hash);
+    sha1sum_destroy(ctx);
+
+    free(file_data);
+    return file_hash;
+};
+
 /*
     Source:
     https://stackoverflow.com/questions/2180079/how-can-i-copy-a-file-on-unix-using-c
@@ -114,7 +142,7 @@ int cp(const char *to, const char *from) {
     if (fd_from < 0)
         return -1;
 
-    fd_to = open(to, O_WRONLY | O_CREAT | O_EXCL, 0666);
+    fd_to = open(to, O_WRONLY | O_CREAT, 0666);
     if (fd_to < 0) {
         close(fd_from);
         if (fd_to >= 0)

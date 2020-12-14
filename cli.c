@@ -17,6 +17,7 @@ int main(int argc, const char** argv) {
 
     // update the root working directory
     getcwd(&g_rootdir[0], sizeof(g_rootdir));
+    DEBUG_PRINTF("Working Directory: %s\n", g_rootdir);
 
     // create a new torrent runtime
     const char* torrent_path = argv[1];

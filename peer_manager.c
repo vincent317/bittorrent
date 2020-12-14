@@ -193,7 +193,6 @@ int parse_tracker_response(bencode_t* tracker_response_bencode){
             return 1;
         } else if(strncmp(key, "interval", keylen) == 0) {
             bencode_int_value(&dict_entry, &interval);
-            printf("The interval the client should send request to the tracker is %ld\n", interval);
         } else if(strncmp(key, "complete", keylen) == 0) {
             bencode_int_value(&dict_entry, (long int *)&complete);
             printf("Complete (# of seeders) is %d\n", complete);
@@ -201,6 +200,9 @@ int parse_tracker_response(bencode_t* tracker_response_bencode){
             bencode_int_value(&dict_entry, (long int *)&incomplete);
             printf("Incomplete (# of leechers) is %d\n", incomplete);
         } else if(strncmp(key, "peers", keylen) == 0) {
+            printf("Beginning download in 10 seconds.....\n");
+            sleep(10);
+
             bencode_string_value(&dict_entry, &val, &len);
             parse_peers_string(val, len/6);
         }
