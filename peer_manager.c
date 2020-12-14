@@ -116,8 +116,6 @@ int create_peer_connection_socket(uint8_t *addr, uint16_t port){
         return 0;
     }
 
-    DEBUG_PRINTF("Established connection to peer\n");
-
     return peer_socket;
 }
 
@@ -167,9 +165,14 @@ void parse_peers_string(const char *string, int tn){
 
         insert_peerlist_ifnotexists(ip_arr, port);
 
-        if (i > 5 && g_debug == 1) break;
+        if ((i > 5 && g_debug == 1) || i > 20)
+            break;
     }
+
+    DEBUG_PRINTF("\n=================\n");
+    printf("Connected to %d peers successfully!\n", number_of_peers);
     print_peer_list();
+    DEBUG_PRINTF("\n=================\n")
 }
 
 int parse_tracker_response(bencode_t* tracker_response_bencode){
@@ -810,8 +813,8 @@ int start_peer_manager(Torrent *torrent){
                         if(ID == 8) {
                             DEBUG_PRINTF("Cancel message\n");
                         };
-                    }else{
-                        DEBUG_PRINTF("Handshaking with: %d ", peer->port);
+                    } else {
+                        // DEBUG_PRINTF("Handshaking with: %d ", peer->port);
                         print_ip_address(peer->address);
                         uint8_t pstrlen;
 
@@ -859,8 +862,7 @@ int start_peer_manager(Torrent *torrent){
                             number_of_peers--;
                             continue;
                         };
-                        DEBUG_PRINTF("Handshaking success, get peerid\n");
-                        DEBUG_PRINTF("Start sending  interested message\n");
+
                         send_interested_message(peer, 1);
                     }
                 }

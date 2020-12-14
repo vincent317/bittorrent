@@ -177,7 +177,8 @@ void piece_manager_initiate_download(){
         anyInterested = anyInterested || piece_manager_am_interested(peerList);
         peerList = peerList->next;
     }
-    DEBUG_PRINTF("Is there any peer that I am still interested in? %d\n", anyInterested);
+
+    // DEBUG_PRINTF("Is there any peer that I am still interested in? %d\n", anyInterested);
    
     if (TEMP_CURRENTLY_DOWNLOADING) {
         DEBUG_PRINTF("Skipping begin now download, debug mode enabled & download in progress....\n");
@@ -212,13 +213,16 @@ void piece_manager_initiate_download(){
 
     for(int i = 0; i < maxNumPiece; i++){
         // Check that client don't have piece and had not send a request for the piece
-        if(i == 85){
+        /*
+        if(i == 85) {
             DEBUG_PRINTF("Checking 86th piece\n");
             DEBUG_PRINTF("Do I not have the piece %d\n Am I currently requesting the piece? %d\n Peer Sock %d\n ",
             !have_piece(myBitfield, i),
             !currently_requesting_piece(i),
             get_peer_socket_from_piece(i));
         }
+        */
+
         if(!have_piece(myBitfield, i) && !currently_requesting_piece(i)){
             // printf("checking for piece %d\n", i);            
             int chance = 6;
@@ -231,11 +235,13 @@ void piece_manager_initiate_download(){
                 // Client is interested and peer is not choking and 
                 // have current look at piece that client don't have
                 if(i == 85){
+                    /*
                     DEBUG_PRINTF("Had not requesting from this peer %d \n not downloading from this peer %d \n peer is not choking %d \n peer have this piece %d\n", 
                     !currently_requesting_piece_from(listOpenPeer[pos].peer->socket),
                     !(listOpenPeer[pos].peer)->curr_dl,
                     (listOpenPeer[pos].peer)->peer_choking == 0,
                     have_piece((listOpenPeer[pos].peer)->bitfield, i));
+                    */
                 }
 
                 if(
@@ -281,9 +287,7 @@ void piece_manager_initiate_download(){
     uint16_t num_unchoked = 0;
 
     while (ptr != NULL) {
-        if (ptr->peer_choking == 0){
-            //print_bitfield(ptr->bitfield, ptr->bitfield_length);
-            DEBUG_PRINTF("Peer Socket %d\n", ptr->socket);
+        if (ptr->peer_choking == 0) {
             num_unchoked++;
         }
         
