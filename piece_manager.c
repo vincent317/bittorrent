@@ -186,7 +186,7 @@ void piece_manager_initiate_download(){
     struct Peer * p = peer_manager_get_root_peer();
     int numOpen = 0;
     while(p != NULL){
-        if(p->peer_choking == 0){
+        if(p->peer_choking == 0 && p->curr_up != 1){
             numOpen++;
         }
         p = p->next;
