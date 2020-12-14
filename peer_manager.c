@@ -116,6 +116,8 @@ int create_peer_connection_socket(uint8_t *addr, uint16_t port){
         return 0;
     }
 
+    DEBUG_PRINTF("Established connection to peer\n");
+
     return peer_socket;
 }
 
@@ -165,7 +167,7 @@ void parse_peers_string(const char *string, int tn){
 
         insert_peerlist_ifnotexists(ip_arr, port);
 
-        if (i > 5) break;
+        if (i > 5 && g_debug == 1) break;
     }
     print_peer_list();
 }
