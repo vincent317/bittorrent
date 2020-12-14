@@ -47,14 +47,13 @@ void hexstr_to_sha1(uint8_t* dst_hash, char* hex_str){
 int read_n_bytes(void *buffer, int bytes_expected, int read_socket) {
     int bytes_received = 0;
     int bytes_read = 0;
-    //int i = 0;
 
     while(bytes_received < bytes_expected) {
         bytes_read = recv(read_socket, buffer + bytes_received, bytes_expected-bytes_received, 0);
 
         if(bytes_read <= 0) {
-            printf("[Shared] Error: Reading %d bytes from socket %d failed (code=%d)\n",
-                bytes_expected, read_socket, bytes_read);
+            /* DEV_PRINTF("[Shared] Error: Reading %d bytes from socket %d failed (code=%d)\n",
+                // bytes_expected, read_socket, bytes_read); */
             
             return -1;
         }

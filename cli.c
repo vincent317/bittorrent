@@ -8,7 +8,7 @@ int main(int argc, const char** argv) {
         return 0;
     }
 
-    if (argc == 3) {
+    if (argc == 3 && strcmp(argv[2], "y") == 0) {
         printf("Running in debug mode.....\n");
         g_debug = 1;
     }

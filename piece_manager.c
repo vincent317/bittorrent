@@ -17,7 +17,7 @@ void piece_manager_startup(Torrent * torrent){
     // Create folder for pieces if don't exist
     char cwd1[PATH_MAX];
     if (getcwd(cwd1, sizeof(cwd1)) != NULL) {
-        DEBUG_PRINTF("1 Current working dir: %s\n", cwd1);
+       // DEBUG_PRINTF("1 Current working dir: %s\n", cwd1);
     }
     
     mkdir(".torrent_data", 0777);
@@ -29,15 +29,8 @@ void piece_manager_startup(Torrent * torrent){
 
     char cwd2[PATH_MAX];
     if (getcwd(cwd2, sizeof(cwd2)) != NULL) {
-        DEBUG_PRINTF("2 Current working dir: %s\n", cwd2);
+        // DEBUG_PRINTF("2 Current working dir: %s\n", cwd2);
     }    
-
-
-//    uint32_t fileLen = torrent->length;        // Get the length field in the torrent file
-//    uint32_t pieceLen = torrent->piece_length;      // Get the piece length in the torrent file
-    DEBUG_PRINTF("HERE! num pieces: %ld\n", torrent->num_pieces);
-
-
 
     maxNumPiece = torrent->num_pieces;
     myBitfield = malloc((int) ceil((double) maxNumPiece / 8));
@@ -164,11 +157,7 @@ void piece_manager_create_upload_manager(
 
 
 // Current code can request multiple piece to same peer if that piece is among the rarest.
-void piece_manager_initiate_download(){
-    // TODO: Remove
-    DEBUG_PRINTF("Check TEMP_CURRENTLY_DOWNLOADING %d\n", TEMP_CURRENTLY_DOWNLOADING);
-    //print_bitfield(myBitfield, (int) ceil((double) maxNumPiece / 8));
-    DEBUG_PRINTF("\n");
+void piece_manager_initiate_download() {
     struct Peer * peerList = peer_manager_get_root_peer();
 
     bool anyInterested = false;
@@ -180,8 +169,8 @@ void piece_manager_initiate_download(){
 
     // DEBUG_PRINTF("Is there any peer that I am still interested in? %d\n", anyInterested);
    
-    if (TEMP_CURRENTLY_DOWNLOADING) {
-        DEBUG_PRINTF("Skipping begin now download, debug mode enabled & download in progress....\n");
+    if (DEBUG_CURRENTLY_DOWNLOADING && g_debug == 1) {
+        DEBUG_PRINTF("[Debug Mode] Skipping begin now download, download in progress\n");
         return;
     }
     
@@ -277,6 +266,8 @@ void piece_manager_initiate_download(){
             DEBUG_PRINTF("-- error: piece manager selected NULL peer!\n");
         }
 
+        peer_manager_begin_download(smallest, minPiece);
+
         // Track piece that have send request for
         add_requested_piece(smallest->socket, minPiece);
     } else {
@@ -336,13 +327,13 @@ void piece_manager_periodic() {
         exit(EXIT_FAILURE);
     }
 
-    DEBUG_PRINTF("[Piece Manager Periodic] Checking to see if any new DL info came in\n");
+    // DEBUG_PRINTF("[Piece Manager Periodic] Checking to see if any new DL info came in\n");
     currentElem = downloadPipeList->next;
     while(currentElem != downloadPipeList){
         if(FD_ISSET(currentElem->sock, &downloadPipeSet)){
             char buffer[1];
             read(currentElem->sock, buffer, 1);
-            DEBUG_PRINTF("[Piece Manager Periodic] Got code %c\n", buffer[0]);
+            // DEBUG_PRINTF("[Piece Manager Periodic] Got code %c\n", buffer[0]);
 
             int currentPipe = currentElem->sock;
             uint32_t currentPieceIndex = currentElem->pieceIndex;
