@@ -167,7 +167,7 @@ void piece_manager_create_upload_manager(
 void piece_manager_initiate_download(){
     // TODO: Remove
     printf("Check TEMP_CURRENTLY_DOWNLOADING %d\n", TEMP_CURRENTLY_DOWNLOADING);
-    print_bitfield(myBitfield, (int) ceil((double) maxNumPiece / 8));
+    //print_bitfield(myBitfield, (int) ceil((double) maxNumPiece / 8));
     printf("\n");
     struct Peer * peerList = peer_manager_get_root_peer();
 
@@ -274,12 +274,12 @@ void piece_manager_initiate_download(){
 
         peer_manager_begin_download(smallest, minPiece);
 
-                printf("Bbbbbbb\n");
+        printf("Bbbbbbb\n");
 
         // Track piece that have send request for
         add_requested_piece(smallest->socket, minPiece);
 
-                printf("Ccccc\n");
+        printf("Ccccc\n");
     } else {
         printf("[Piece Manager] could not identify piece to download!\n");
     }
@@ -289,7 +289,7 @@ void piece_manager_initiate_download(){
 
     while (ptr != NULL) {
         if (ptr->peer_choking == 0){
-            print_bitfield(ptr->bitfield, ptr->bitfield_length);
+            //print_bitfield(ptr->bitfield, ptr->bitfield_length);
             printf("Peer Socket %d\n", ptr->socket);
             num_unchoked++;
         }
