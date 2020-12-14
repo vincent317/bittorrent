@@ -123,8 +123,8 @@ void piece_manager_begin_upload_download(
     int fd[2]; // 0=read, 1=write
     pipe(fd);
 
-    DEBUG_PRINTF("[Piece Manager] begin up/dl. begin=%d, len=%d, piece=%d\n",
-        begin, len, pieceIndex);
+    /* DEBUG_PRINTF("[Piece Manager] begin up/dl. begin=%d, len=%d, piece=%d\n",
+        begin, len, pieceIndex); */
 
     // Malloc args for the upload/download manager
     UploadDownloadManagerArgs* args = malloc(sizeof(UploadDownloadManagerArgs));
@@ -258,9 +258,8 @@ void piece_manager_initiate_download() {
         }
     }
 
-
     if(minPiece != -1) {
-        DEBUG_PRINTF("[Piece Manager] beginning download on piece index : %d\n", minPiece);
+        DEBUG_PRINTF("[Piece Manager] Beginning download on piece index : %d\n", minPiece);
 
         if (smallest == NULL) {
             DEBUG_PRINTF("-- error: piece manager selected NULL peer!\n");
@@ -359,15 +358,31 @@ void piece_manager_periodic() {
                 remove_upload_download_pipe(0, currentPipe);
 
                 // Downloaded the whole piece
-             /*   if(!(currentPeer->curr_dl_next_subpiece < total_subpieces)){
-                    set_have_piece(myBitfield, currentPieceIndex);
+                if(!(currentPeer->curr_dl_next_subpiece < total_subpieces)) {
+                    printf("[Piece Manager] Fully downloaded piece=%d\n",
+                        currentPieceIndex);
+
+                    // validate the piece SHA hash
+                    // TODO
+
+                    // copy the temporary piece over; move to permanant storage
+                    char piece_perm_filename[1024] = {0};
+                    char piece_temp_filename[1024] = {0};
+                    get_piece_filename(piece_perm_filename, currentPieceIndex, 0);
+                    get_piece_filename(piece_temp_filename, currentPieceIndex, 1);
+
+                    if (cp(piece_perm_filename, piece_temp_filename) != 0) {
+                        printf("\n[Piece Manager] ERROR!!! Unable to store piece file!!!!\n\n");
+                    } else {
+                        set_have_piece(myBitfield, currentPieceIndex);
+                    }
+                    
                     remove_requested_piece(currentPieceIndex);
                 }
-                */
                
                 // Delete below when the above is uncommented
-                set_have_piece(myBitfield, currentPieceIndex);
-                remove_requested_piece(currentPieceIndex);
+                // set_have_piece(myBitfield, currentPieceIndex);
+                // remove_requested_piece(currentPieceIndex);
                 
 
                 if(peerSocket != -1){

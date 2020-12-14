@@ -4,6 +4,9 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <sys/time.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <errno.h>
 
 void print_bitfield(uint8_t *bitfield, int length){
     for(int i= 0; i < length; i++){
@@ -95,6 +98,73 @@ int send_n_bytes(void *buffer, int bytes_expected, int send_socket){
     }
 
 	return bytes_sent;
+};
+
+/*
+    Source:
+    https://stackoverflow.com/questions/2180079/how-can-i-copy-a-file-on-unix-using-c
+*/
+
+int cp(const char *to, const char *from) {
+    int fd_to, fd_from;
+    char buf[4096];
+    ssize_t nread;
+
+    fd_from = open(from, O_RDONLY);
+    if (fd_from < 0)
+        return -1;
+
+    fd_to = open(to, O_WRONLY | O_CREAT | O_EXCL, 0666);
+    if (fd_to < 0) {
+        close(fd_from);
+        if (fd_to >= 0)
+            close(fd_to);
+
+        return -1;
+    }
+
+    while (nread = read(fd_from, buf, sizeof buf), nread > 0)
+    {
+        char *out_ptr = buf;
+        ssize_t nwritten;
+
+        do {
+            nwritten = write(fd_to, out_ptr, nread);
+
+            if (nwritten >= 0)
+            {
+                nread -= nwritten;
+                out_ptr += nwritten;
+            }
+            else if (errno != EINTR)
+            {
+                close(fd_from);
+                if (fd_to >= 0)
+                    close(fd_to);
+
+                return -1;
+            }
+        } while (nread > 0);
+    }
+
+    if (nread == 0)
+    {
+        if (close(fd_to) < 0)
+        {
+            fd_to = -1;
+            close(fd_from);
+            if (fd_to >= 0)
+                close(fd_to);
+
+            return -1;
+        }
+        close(fd_from);
+
+        /* Success! */
+        return 0;
+    }
+
+    return -1;
 };
 
 /*

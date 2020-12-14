@@ -885,7 +885,11 @@ int start_peer_manager(Torrent *torrent){
             optimistic_unchoking();
             gettimeofday(&optimistic_unchoking_time, NULL);
         }
-        if(current_time.tv_sec - periodic_function_time.tv_sec > 1){
+
+        struct timeval last_periodic;
+        timersub(&current_time, &periodic_function_time, &last_periodic);
+
+        if(last_periodic.tv_usec >= 500000 || last_periodic.tv_sec >= 1){
             // DEBUG_PRINTF("---- [running piece manager periodic]\n");
             piece_manager_periodic();
             // DEBUG_PRINTF("---- [running torrent periodic]\n");

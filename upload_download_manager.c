@@ -9,8 +9,8 @@ uint8_t BUFFER[256000];
 
 void create_download_manager(UploadDownloadManagerArgs* args) {
     DEBUG_PRINTF("[Download Manager] ==========================\n");
-    DEBUG_PRINTF("[Download Manager] Reading... piece=%d, begin=%d, len=%d\n",
-        args->pieceIndex, args->begin, args->len);
+    /*  DEBUG_PRINTF("[Download Manager] Reading... piece=%d, begin=%d, len=%d\n",
+        args->pieceIndex, args->begin, args->len); */
 
     /* DEBUG_PRINTF("[DL] reading %d bytes from socket=%d\n",
         args->len, args->peer->socket); */
@@ -40,7 +40,7 @@ void create_download_manager(UploadDownloadManagerArgs* args) {
 
         fwrite(&BUFFER[0], 1, (size_t) bytes_read, piece_tmp);
         fclose(piece_tmp);
-        DEBUG_PRINTF("[Download Manager] Successfully write %d bytes piece=%d temp file. Filesize=%d.\n",
+        DEBUG_PRINTF("[Download Manager] Read & wrote piece data. %d bytes piece=%d -> temp file. Filesize=%d.\n",
             bytes_read, args->pieceIndex, (int) (cursor_pos + bytes_read));
     }
 
