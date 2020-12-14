@@ -52,7 +52,7 @@ void print_ip_address(uint8_t *addr){
     DEBUG_PRINTF("\n");
 }
 
-void print_peer(struct Peer *peer){
+void print_peer(struct Peer *peer) {
     print_ip_address(peer->address);
     DEBUG_PRINTF("\n");
     DEBUG_PRINTF("Port: %d\n", peer->port);
@@ -61,7 +61,7 @@ void print_peer(struct Peer *peer){
         peer->am_choking, peer->am_interested, peer->peer_choking, peer->peer_interested);
     DEBUG_PRINTF("Download rate: %ld\n", peer->download_rate);
     //TODO: printbitfield
-}
+};
 
 /*
     Create a fd set of all the file descriptors we have active
@@ -426,13 +426,16 @@ void peer_manager_upload_download_complete(uint8_t is_upload, struct Peer* peer,
             return;
         } else {
             DEBUG_PRINTF("[Peer Manager] Downloaded all subpieces for piece=%d!\n", piece_index);
+            
             struct Peer *cur = head_peer;
+            
             while(cur != NULL){
                 struct Peer *next = cur->next;
                 if(peer->curr_up == 0)
                     send_have_message(cur, piece_index);
                 cur = next;
             }
+
             DEBUG_CURRENTLY_DOWNLOADING = 0;
             peer->curr_dl = 0;
             peer->curr_dl_next_subpiece = 0;

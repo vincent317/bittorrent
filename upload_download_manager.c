@@ -1,10 +1,17 @@
 
 #include "upload_download_manager.h"
 
-uint8_t BUFFER[32000];
+/*
+    NOTE: Do not use chdir since chdir is process wide!
+*/
+
+uint8_t BUFFER[256000];
 
 void create_download_manager(UploadDownloadManagerArgs* args) {
     DEBUG_PRINTF("[Download Manager] ==========================\n");
+    DEBUG_PRINTF("[Download Manager] Reading... piece=%d, begin=%d, len=%d\n",
+        args->pieceIndex, args->begin, args->len);
+
     /* DEBUG_PRINTF("[DL] reading %d bytes from socket=%d\n",
         args->len, args->peer->socket); */
     
@@ -15,7 +22,26 @@ void create_download_manager(UploadDownloadManagerArgs* args) {
         write(args->write_fd, "f", sizeof(char));
         return;
     } else {
-        DEBUG_PRINTF("[Download Manager] Successfully read %d bytes from peer!\n", bytes_read);
+        // get the piece file
+        char piece_temp_filename[1024] = {0};
+        get_piece_filename(piece_temp_filename, args->pieceIndex, 1);
+
+        // open the file
+        FILE* piece_tmp = fopen(piece_temp_filename, (args->begin == 0) ? "w" : "a");
+
+        if (piece_tmp == NULL) {
+            DEBUG_PRINTF("[Download Manager] Error downloading piece!\n");
+            return;
+        } else {
+            fseek(piece_tmp, 0, SEEK_END);
+        }
+
+        long int cursor_pos = ftell(piece_tmp);
+
+        fwrite(&BUFFER[0], 1, (size_t) bytes_read, piece_tmp);
+        fclose(piece_tmp);
+        DEBUG_PRINTF("[Download Manager] Successfully write %d bytes piece=%d temp file. Filesize=%d.\n",
+            bytes_read, args->pieceIndex, (int) (cursor_pos + bytes_read));
     }
 
     write(args->write_fd, "s", sizeof(char));

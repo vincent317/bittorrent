@@ -8,11 +8,17 @@ int main(int argc, const char** argv) {
         return 0;
     }
 
+    g_debug = 0;
+
     if (argc == 3 && strcmp(argv[2], "y") == 0) {
         printf("Running in debug mode.....\n");
         g_debug = 1;
     }
 
+    // update the root working directory
+    getcwd(&g_rootdir[0], sizeof(g_rootdir));
+
+    // create a new torrent runtime
     const char* torrent_path = argv[1];
     create_torrent_runtime(torrent_path);
 
@@ -20,5 +26,5 @@ int main(int argc, const char** argv) {
 };
 
 void cli_periodic() {
-    // TODO
+    // nothing needed here for now...
 };

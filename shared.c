@@ -1,11 +1,9 @@
 #include <string.h>
 #include "shared.h"
 #include <netinet/tcp.h>
- #include <arpa/inet.h>
+#include <arpa/inet.h>
 #include <sys/socket.h>
 #include <sys/time.h>
-
-int g_debug = 0;
 
 void print_bitfield(uint8_t *bitfield, int length){
     for(int i= 0; i < length; i++){
@@ -26,6 +24,25 @@ char* sha1_to_hexstr(uint8_t* sha1_hash_binary) {
 	}
 
     return (char*) hash_hex;
+};
+
+void get_piece_filename(char* dst, int piece_index, int temp) {
+    uint8_t* piece_hash = g_torrent->piece_hashes[piece_index];
+    char* piece_hash_str = sha1_to_hexstr(piece_hash);
+    
+    // TEMP: ./torrent_data/<torrent id>/temp/<piece hash>_<unique thread id>
+    // FINAL: ./torrent_data/<torrent id>/<piece hash>
+    strcat(dst, g_rootdir);
+    strcat(dst, "/.torrent_data/");
+    strcat(dst, g_torrent->hash_str);
+    strcat(dst, "/");
+
+    if (temp == 1) {
+        strcat(dst, "temp/");
+        strcat(dst, piece_hash_str);
+    } else {
+        strcat(dst, piece_hash_str);
+    }
 };
 
 // Converts a 40-char string into 20-byte hash
