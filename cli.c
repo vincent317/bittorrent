@@ -4,14 +4,12 @@
 
 int main(int argc, const char** argv) {
     if (argc != 2 && argc != 3) {
-        printf("Invalid execution, use: ./bittorrent <torrent path> [file/folder?]\n");
+        printf("Invalid execution, use: ./bittorrent <torrent path> [debug, y/n]\n");
         return 0;
     }
 
     const char* torrent_path = argv[1];
-    const char* seed_location = (argc == 2) ? argv[2] : NULL;
-
-    create_torrent_runtime(torrent_path, seed_location);
+    create_torrent_runtime(torrent_path);
 
     return 0;
 };

@@ -241,10 +241,7 @@ uint32_t torrent_hash_to_piece_index(uint8_t* hash) {
     return 0;
 };
 
-TorrentRuntime* create_torrent_runtime(const char* torrent_path, const char* seed_path) {
-    
-    // TODO: Handle Seed Path
-
+TorrentRuntime* create_torrent_runtime(const char* torrent_path) {
     if (g_torrent != NULL) {
         printf("error: already downloading torrent, cannot download another\n");
         return NULL;
