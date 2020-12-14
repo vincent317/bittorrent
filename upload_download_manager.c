@@ -15,7 +15,7 @@ void create_download_manager(UploadDownloadManagerArgs* args) {
         write(args->write_fd, "f", sizeof(char));
         return;
     } else {
-        // DEBUG_PRINTF("[DL] Successfully read %d bytes from peer!\n", bytes_read);
+        DEBUG_PRINTF("[Download Manager] Successfully read %d bytes from peer!\n", bytes_read);
     }
 
     write(args->write_fd, "s", sizeof(char));

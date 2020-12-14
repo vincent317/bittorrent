@@ -10,15 +10,14 @@ void file_assembler_begin(Torrent * torrent){
     uint64_t pieceIndex = 0;
     uint32_t pieceSize = torrent->piece_length;
 
-    if(currentFile == NULL){
+    if (currentFile == NULL) {
         DEBUG_PRINTF("CURRENT FILE IS EMPTY\n");
-    }
-    else{
+    } else {
         DEBUG_PRINTF("GETTING FILEPATH %s\n", currentFile->full_path);
 
     }
 
-    while(currentFile != NULL){
+    while (currentFile != NULL) {
         FILE * fp;
         FILE * piece;
 
@@ -60,7 +59,6 @@ void file_assembler_begin(Torrent * torrent){
             strcat(filePath, torrent->hash_str);
             strcat(filePath, "/");
             strcat(filePath, filename);
-
 
             DEBUG_PRINTF("Try to open piece %s\n", filePath);
             piece = fopen(filePath, "r");
@@ -119,8 +117,7 @@ void file_assembler_begin(Torrent * torrent){
         fclose(fp);
     }
 
-}
-
+};
 
 void file_assembler_read_then_write(FILE * readFile, FILE * writeFile, uint64_t beginIndex, uint64_t amount){
     uint8_t buffer[2048];
@@ -136,4 +133,4 @@ void file_assembler_read_then_write(FILE * readFile, FILE * writeFile, uint64_t 
         fwrite(buffer, 1, readAmount, writeFile);
         amountLeft = amountLeft - readAmount;
     }
-}
+};
