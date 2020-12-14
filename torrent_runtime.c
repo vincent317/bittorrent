@@ -1,6 +1,7 @@
 #include "torrent_runtime.h"
 #include "bencode.h"
 #include "peer_manager.h"
+#include "piece_manager.h"
 
 Torrent* g_torrent = NULL;
 

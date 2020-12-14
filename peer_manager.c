@@ -16,7 +16,6 @@
 #include "peer_manager.h"
 #include "piece_manager.h"
 
-#define PIECE_DOWNLOAD_SIZE 15000
 #define MAX_PEERS 128
 
 /*
@@ -412,15 +411,17 @@ void peer_manager_upload_download_complete(uint8_t is_upload, struct Peer* peer,
         total_subpieces, peer->curr_dl_next_subpiece);
 
     // IF REMAINING SUBPIECES, DOWNLOAD THE NEXT SUBPIECE
-    if (peer->curr_dl_next_subpiece < total_subpieces) {
-        printf("[Peer Manager] Recursive subpiece download....!!!!!\n");
-        peer_manager_begin_download(peer, piece_index);
-        return;
-    } else {
-        printf("[Peer Manager] Downloaded all subpieces!\n");
+    if(is_upload){
+        if (peer->curr_dl_next_subpiece < total_subpieces) {
+            printf("[Peer Manager] Recursive subpiece download....!!!!!\n");
+            peer_manager_begin_download(peer, piece_index);
+            return;
+        } else {
+            printf("[Peer Manager] Downloaded all subpieces!\n");
+        }
     }
 
-    // IF WE DOWNLOADED ALL PIECES, BROADCAST
+    // IF WE DOWNLOADED WHOLE PIECES, BROADCAST
     if (!is_upload) {
         struct Peer *cur = head_peer;
         while(cur != NULL){
@@ -433,9 +434,14 @@ void peer_manager_upload_download_complete(uint8_t is_upload, struct Peer* peer,
     }
 
     // mark no longer downloading
-    peer->curr_dl = 0;
-    peer->curr_dl_next_subpiece = 0;
-    peer->curr_dl_piece_idx = 0;
+    if(is_upload){
+        peer->curr_up = 0;
+    }
+    else{
+        peer->curr_dl = 0;
+        peer->curr_dl_next_subpiece = 0;
+        peer->curr_dl_piece_idx = 0;
+    }
 
     // update the pollfd
     update_pollfd();
@@ -704,7 +710,42 @@ int start_peer_manager(Torrent *torrent){
                         
                         // request: <len=0013><id=6><index><begin><length>
                         if(ID == 6) {
-                             printf("request message\n");
+                            printf("request message\n");
+
+                            uint32_t pieceIndex = 0;
+                            uint32_t begin = 0;
+                            uint32_t length = 0;
+
+                            // get the piece index
+                            if (read_n_bytes(&pieceIndex, 4, peers_sockets[i].fd) == -1) {
+                                remove_from_peer_linked_list(peer);
+                                number_of_peers--;
+                                continue;
+                            };
+                            
+                            // get the begin
+                            if (read_n_bytes(&begin, 4, peers_sockets[i].fd) == -1) {
+                                remove_from_peer_linked_list(peer);
+                                number_of_peers--;
+                                continue;
+                            };
+
+                            // get the length
+                            if (read_n_bytes(&length, 4, peers_sockets[i].fd) == -1) {
+                                remove_from_peer_linked_list(peer);
+                                number_of_peers--;
+                                continue;
+                            };
+
+                            pieceIndex = be32toh(pieceIndex);
+                            begin = be32toh(begin);
+                            length = be32toh(length);
+                            
+                            peer->curr_up = 1;
+                            peer->curr_up_piece_idx = pieceIndex;
+                            
+                            piece_manager_create_upload_manager(peer, pieceIndex, length, begin);
+
                         };
                         
                         // piece: <len=0009+X><id=7><index 4><begin 4><block X>
@@ -916,25 +957,27 @@ int peer_manager_begin_download(struct Peer* peer, int pieceIndex) {
         return 0;
     }
 
+    uint32_t totalRemainingByte = g_torrent->length - (pieceIndex * g_torrent->piece_length);
+
     uint32_t totallen = 13;
     totallen = htobe32(totallen);
     uint8_t ID = 6;
     uint32_t pieceIndex_t = pieceIndex;
     pieceIndex_t = htobe32(pieceIndex_t);
     uint32_t begin = 0;
-    uint32_t length = g_torrent->piece_length;
+    uint32_t length = g_torrent->piece_length < totalRemainingByte ? g_torrent->piece_length : totalRemainingByte;
 
     if (length > PIECE_DOWNLOAD_SIZE) {
         // if we are already downloading this piece, get the next subpiece
         if (
             peer->curr_dl &&
-            peer->curr_dl_piece_idx == pieceIndex
+            peer->curr_dl_piece_idx == (uint32_t)pieceIndex
         ) {
             begin += peer->curr_dl_next_subpiece * PIECE_DOWNLOAD_SIZE;
         }
 
         peer->curr_dl_next_subpiece++;
-        length = PIECE_DOWNLOAD_SIZE;
+        length = PIECE_DOWNLOAD_SIZE < g_torrent->piece_length - begin ? PIECE_DOWNLOAD_SIZE : g_torrent->piece_length - begin;
 
         printf("getting subpiece, [%d - %d), len=%d\n",
             (int) begin, (int) (begin + length), length);
