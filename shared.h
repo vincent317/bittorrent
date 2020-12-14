@@ -3,6 +3,7 @@
 #define SHARED_H_INCLUDED
 
 #define MAX_PIECE_SIZE 256000
+#define PIECE_DOWNLOAD_SIZE 15000.0
 #define DEBUG_PRINTF(f_, ...) { if(g_debug == 1) printf((f_), ##__VA_ARGS__); };
 
 #include <stdio.h>

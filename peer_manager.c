@@ -413,11 +413,13 @@ void peer_manager_upload_download_complete(uint8_t is_upload, struct Peer* peer,
     }
 
     uint32_t total_subpieces = ceil(g_torrent->piece_length / PIECE_DOWNLOAD_SIZE);
+
     DEBUG_PRINTF("[Peer Manager] - Downloaded %d/%d subpieces.\n",
         peer->curr_dl_next_subpiece, total_subpieces);
 
     // IF REMAINING SUBPIECES, DOWNLOAD THE NEXT SUBPIECE
     if(!is_upload){
+        // do a recursive download on the subpieces
         if (peer->curr_dl_next_subpiece < total_subpieces) {
             DEBUG_PRINTF("[Peer Manager] - Downloading subpiece %d/%d on piece=%d\n",
                 peer->curr_dl_next_subpiece + 1, total_subpieces, piece_index);
@@ -428,13 +430,17 @@ void peer_manager_upload_download_complete(uint8_t is_upload, struct Peer* peer,
             DEBUG_PRINTF("[Peer Manager] Downloaded all subpieces for piece=%d!\n", piece_index);
             
             struct Peer *cur = head_peer;
+            int peers_broadcasted = 0;
             
             while(cur != NULL){
                 struct Peer *next = cur->next;
                 if(peer->curr_up == 0)
                     send_have_message(cur, piece_index);
                 cur = next;
+                peers_broadcasted++;
             }
+
+            DEBUG_PRINTF("[Peer Manager] - Broadcasted to %d peers we have piece=%d\n", peers_broadcasted, piece_index);
 
             DEBUG_CURRENTLY_DOWNLOADING = 0;
             peer->curr_dl = 0;
@@ -897,7 +903,7 @@ int start_peer_manager(Torrent *torrent){
             // DEBUG_PRINTF("---- [running cli periodic]\n");
             cli_periodic();
             // DEBUG_PRINTF("---- PERIODIC FINISHED ----\n\n\n");
-            DEBUG_PRINTF("\n\n\n");
+            // DEBUG_PRINTF("\n\n\n");
             gettimeofday(&periodic_function_time, NULL);
         }
         if(current_time.tv_sec - tracker_request_time.tv_sec >= interval){

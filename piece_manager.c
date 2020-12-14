@@ -198,7 +198,7 @@ void piece_manager_initiate_download() {
     int minOccur = INT_MAX;             // The number of peer that have the minPiece 
     int minPiece = -1;                  // The current rarest piece
 
-    DEBUG_PRINTF("[Piece Manager] initiating download.. num pieces: %d!!\n", maxNumPiece);
+    // DEBUG_PRINTF("[Piece Manager] Downloading piece: %d/%d!!\n", maxNumPiece);
 
     for(int i = 0; i < maxNumPiece; i++){
         // Check that client don't have piece and had not send a request for the piece

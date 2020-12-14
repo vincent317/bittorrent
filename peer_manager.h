@@ -6,8 +6,6 @@
 #include <time.h>
 #include "torrent_runtime.h"
 
-#define PIECE_DOWNLOAD_SIZE 15000
-
 uint16_t DEBUG_CURRENTLY_DOWNLOADING;
 
 struct Peer{
