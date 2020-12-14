@@ -59,7 +59,7 @@ uint32_t torrent_hash_to_piece_index(uint8_t* hash);
     -   Create a Peer Manager (via create_peer_manager)
     -   Create a Piece Manager (via create_piece_manager)
 */
-TorrentRuntime* create_torrent_runtime(const char* torrent_path, const char* seed_path);
+TorrentRuntime* create_torrent_runtime(const char* torrent_path);
 
 /*
     A function called periodically where the Torrent Runtime can perform logic

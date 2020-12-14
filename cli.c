@@ -8,6 +8,11 @@ int main(int argc, const char** argv) {
         return 0;
     }
 
+    if (argc == 3) {
+        printf("Running in debug mode.....\n");
+        g_debug = 1;
+    }
+
     const char* torrent_path = argv[1];
     create_torrent_runtime(torrent_path);
 

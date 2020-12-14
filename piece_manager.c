@@ -17,7 +17,7 @@ void piece_manager_startup(Torrent * torrent){
     // Create folder for pieces if don't exist
     char cwd1[PATH_MAX];
     if (getcwd(cwd1, sizeof(cwd1)) != NULL) {
-        printf("1 Current working dir: %s\n", cwd1);
+        DEBUG_PRINTF("1 Current working dir: %s\n", cwd1);
     }
     
     mkdir(".torrent_data", 0777);
@@ -29,13 +29,13 @@ void piece_manager_startup(Torrent * torrent){
 
     char cwd2[PATH_MAX];
     if (getcwd(cwd2, sizeof(cwd2)) != NULL) {
-        printf("2 Current working dir: %s\n", cwd2);
+        DEBUG_PRINTF("2 Current working dir: %s\n", cwd2);
     }    
 
 
 //    uint32_t fileLen = torrent->length;        // Get the length field in the torrent file
 //    uint32_t pieceLen = torrent->piece_length;      // Get the piece length in the torrent file
-    printf("HERE! num pieces: %ld\n", torrent->num_pieces);
+    DEBUG_PRINTF("HERE! num pieces: %ld\n", torrent->num_pieces);
 
 
 
@@ -68,7 +68,7 @@ void piece_manager_startup(Torrent * torrent){
                 pieceName[i] = '\0';
 
                 if (strlen(pieceName) != 40) {
-                    printf("ERROR: Corrupted piece cache. Piece length is not 40, name: '%s'!", pieceName);
+                    DEBUG_PRINTF("ERROR: Corrupted piece cache. Piece length is not 40, name: '%s'!", pieceName);
                     continue;
                 };
 
@@ -130,7 +130,7 @@ void piece_manager_begin_upload_download(
     int fd[2]; // 0=read, 1=write
     pipe(fd);
 
-    printf("[Piece Manager] begin up/dl. begin=%d, len=%d, piece=%d\n",
+    DEBUG_PRINTF("[Piece Manager] begin up/dl. begin=%d, len=%d, piece=%d\n",
         begin, len, pieceIndex);
 
     // Malloc args for the upload/download manager
@@ -166,9 +166,9 @@ void piece_manager_create_upload_manager(
 // Current code can request multiple piece to same peer if that piece is among the rarest.
 void piece_manager_initiate_download(){
     // TODO: Remove
-    printf("Check TEMP_CURRENTLY_DOWNLOADING %d\n", TEMP_CURRENTLY_DOWNLOADING);
+    DEBUG_PRINTF("Check TEMP_CURRENTLY_DOWNLOADING %d\n", TEMP_CURRENTLY_DOWNLOADING);
     //print_bitfield(myBitfield, (int) ceil((double) maxNumPiece / 8));
-    printf("\n");
+    DEBUG_PRINTF("\n");
     struct Peer * peerList = peer_manager_get_root_peer();
 
     bool anyInterested = false;
@@ -177,11 +177,12 @@ void piece_manager_initiate_download(){
         anyInterested = anyInterested || piece_manager_am_interested(peerList);
         peerList = peerList->next;
     }
-    printf("Is there any peer that I am still interested in? %d\n", anyInterested);
-   /* if (TEMP_CURRENTLY_DOWNLOADING) {
-        printf("Download in progress....\n");
+    DEBUG_PRINTF("Is there any peer that I am still interested in? %d\n", anyInterested);
+   
+    if (TEMP_CURRENTLY_DOWNLOADING) {
+        DEBUG_PRINTF("Skipping begin now download, debug mode enabled & download in progress....\n");
         return;
-    }*/
+    }
     
     struct Peer * p = peer_manager_get_root_peer();
     int numOpen = 0;
@@ -207,13 +208,13 @@ void piece_manager_initiate_download(){
     int minOccur = INT_MAX;             // The number of peer that have the minPiece 
     int minPiece = -1;                  // The current rarest piece
 
-    printf("[Piece Manager] initiating download.. num pieces: %d!!\n", maxNumPiece);
+    DEBUG_PRINTF("[Piece Manager] initiating download.. num pieces: %d!!\n", maxNumPiece);
 
     for(int i = 0; i < maxNumPiece; i++){
         // Check that client don't have piece and had not send a request for the piece
         if(i == 85){
-            printf("Checking 86th piece\n");
-            printf("Do I not have the piece %d\n Am I currently requesting the piece? %d\n Peer Sock %d\n ",
+            DEBUG_PRINTF("Checking 86th piece\n");
+            DEBUG_PRINTF("Do I not have the piece %d\n Am I currently requesting the piece? %d\n Peer Sock %d\n ",
             !have_piece(myBitfield, i),
             !currently_requesting_piece(i),
             get_peer_socket_from_piece(i));
@@ -230,7 +231,7 @@ void piece_manager_initiate_download(){
                 // Client is interested and peer is not choking and 
                 // have current look at piece that client don't have
                 if(i == 85){
-                    printf("Had not requesting from this peer %d \n not downloading from this peer %d \n peer is not choking %d \n peer have this piece %d\n", 
+                    DEBUG_PRINTF("Had not requesting from this peer %d \n not downloading from this peer %d \n peer is not choking %d \n peer have this piece %d\n", 
                     !currently_requesting_piece_from(listOpenPeer[pos].peer->socket),
                     !(listOpenPeer[pos].peer)->curr_dl,
                     (listOpenPeer[pos].peer)->peer_choking == 0,
@@ -264,24 +265,16 @@ void piece_manager_initiate_download(){
 
 
     if(minPiece != -1) {
-        printf("[Piece Manager] beginning download on piece index : %d\n", minPiece);
+        DEBUG_PRINTF("[Piece Manager] beginning download on piece index : %d\n", minPiece);
 
         if (smallest == NULL) {
-            printf("-- error: piece manager selected NULL peer!\n");
+            DEBUG_PRINTF("-- error: piece manager selected NULL peer!\n");
         }
-
-        printf("Aaaaa\n");
-
-        peer_manager_begin_download(smallest, minPiece);
-
-        printf("Bbbbbbb\n");
 
         // Track piece that have send request for
         add_requested_piece(smallest->socket, minPiece);
-
-        printf("Ccccc\n");
     } else {
-        printf("[Piece Manager] could not identify piece to download!\n");
+        DEBUG_PRINTF("[Piece Manager] could not identify piece to download!\n");
     }
 
     struct Peer* ptr = peer_manager_get_root_peer();
@@ -290,14 +283,14 @@ void piece_manager_initiate_download(){
     while (ptr != NULL) {
         if (ptr->peer_choking == 0){
             //print_bitfield(ptr->bitfield, ptr->bitfield_length);
-            printf("Peer Socket %d\n", ptr->socket);
+            DEBUG_PRINTF("Peer Socket %d\n", ptr->socket);
             num_unchoked++;
         }
         
         ptr = ptr->next;
     }
 
-    printf("- %d peers UNCHOKING us\n", num_unchoked);
+    DEBUG_PRINTF("- %d peers UNCHOKING us\n", num_unchoked);
 
     free(listOpenPeer);
 }
@@ -339,13 +332,13 @@ void piece_manager_periodic() {
         exit(EXIT_FAILURE);
     }
 
-    printf("[Piece Manager Periodic] Checking to see if any new DL info came in\n");
+    DEBUG_PRINTF("[Piece Manager Periodic] Checking to see if any new DL info came in\n");
     currentElem = downloadPipeList->next;
     while(currentElem != downloadPipeList){
         if(FD_ISSET(currentElem->sock, &downloadPipeSet)){
             char buffer[1];
             read(currentElem->sock, buffer, 1);
-            printf("[Piece Manager Periodic] Got code %c\n", buffer[0]);
+            DEBUG_PRINTF("[Piece Manager Periodic] Got code %c\n", buffer[0]);
 
             int currentPipe = currentElem->sock;
             uint32_t currentPieceIndex = currentElem->pieceIndex;

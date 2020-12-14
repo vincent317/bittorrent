@@ -5,6 +5,8 @@
 #include <sys/socket.h>
 #include <sys/time.h>
 
+int g_debug = 0;
+
 void print_bitfield(uint8_t *bitfield, int length){
     for(int i= 0; i < length; i++){
         for (int j=0; j< 8;j++){

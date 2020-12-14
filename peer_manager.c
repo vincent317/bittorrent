@@ -41,23 +41,24 @@ Torrent * g_torrent;
 uint16_t TEMP_CURRENTLY_DOWNLOADING = 0;
 
 void print_ip_address(uint8_t *addr){
-    printf("IP Address: ");
+    DEBUG_PRINTF("IP Address: ");
     for(int i =0;i<4;i++){
-        if(i!=3)
-            printf("%d.", addr[i]);
-        else
-            printf("%d", addr[i]);
+        if(i!=3) {
+            DEBUG_PRINTF("%d.", addr[i]);
+        } else {
+            DEBUG_PRINTF("%d", addr[i]);
+        }
     }
-    putchar('\n');
+    DEBUG_PRINTF("\n");
 }
 
 void print_peer(struct Peer *peer){
     print_ip_address(peer->address);
-    printf("Port: %d\n", peer->port);
-    printf("Socket: %d\n", peer->socket);
-    printf("am_choking: %d, am_interested: %d, peer_choking: %d, peer_interested: %d\n", 
+    DEBUG_PRINTF("Port: %d\n", peer->port);
+    DEBUG_PRINTF("Socket: %d\n", peer->socket);
+    DEBUG_PRINTF("am_choking: %d, am_interested: %d, peer_choking: %d, peer_interested: %d\n", 
         peer->am_choking, peer->am_interested, peer->peer_choking, peer->peer_interested);
-    printf("Download rate: %ld\n", peer->download_rate);
+    DEBUG_PRINTF("Download rate: %ld\n", peer->download_rate);
     //TODO: printbitfield
     putchar('\n');
 }
@@ -111,7 +112,7 @@ int create_peer_connection_socket(uint8_t *addr, uint16_t port){
   
     if (connect(peer_socket, (struct sockaddr *) &servAddr, sizeof(servAddr)) < 0){
         close(peer_socket);
-        fprintf(stderr, "socket connection timeout\n");
+        DEBUG_PRINTF("socket connection timeout\n");
         return 0;
     }
 
@@ -321,7 +322,7 @@ int send_handshake_message(struct Peer *peer){
     *(bitfield_packet + 4) = 5;
 
     if (send_n_bytes((void*) bitfield_packet, 4 + 1 + bitfield_len, peer->socket) == -1) {
-        printf("error!!!! sending bitfield!!!\n");
+        DEBUG_PRINTF("error!!!! sending bitfield!!!\n");
     }
 
     return 1;
@@ -402,22 +403,22 @@ void send_have_message(struct Peer *peer, int piece_index){
 
 void peer_manager_upload_download_complete(uint8_t is_upload, struct Peer* peer, int piece_index){
     if (!is_upload) {
-        printf("[Peer Manager] Finished downloading piece (or subpiece). index=%d\n",
+        DEBUG_PRINTF("[Peer Manager] Finished downloading piece (or subpiece). index=%d\n",
             piece_index);
     }
 
     uint32_t total_subpieces = ceil(g_torrent->piece_length / PIECE_DOWNLOAD_SIZE);
-    printf("Total subpieces: %d. Next subpiece: %d\n",
+    DEBUG_PRINTF("Total subpieces: %d. Next subpiece: %d\n",
         total_subpieces, peer->curr_dl_next_subpiece);
 
     // IF REMAINING SUBPIECES, DOWNLOAD THE NEXT SUBPIECE
     if(!is_upload){
         if (peer->curr_dl_next_subpiece < total_subpieces) {
-            printf("[Peer Manager] Recursive subpiece download....!!!!!\n");
+            DEBUG_PRINTF("[Peer Manager] Recursive subpiece download....!!!!!\n");
             peer_manager_begin_download(peer, piece_index);
             return;
         } else {
-            printf("[Peer Manager] Downloaded all subpieces!\n");
+            DEBUG_PRINTF("[Peer Manager] Downloaded all subpieces!\n");
             struct Peer *cur = head_peer;
             while(cur != NULL){
                 struct Peer *next = cur->next;
@@ -572,7 +573,7 @@ struct Peer *get_peer_from_socket(int socket){
 // TODO: Close the connection if it's open. Clean up anything leftover from the peer.
 // TODO: Make sure the piece manager is aware of this as well, or the piece manager adapts correctly
 int peer_manager_inform_disconnect(struct Peer *peer) {
-    printf("[Peer Manager] Handling peer disconnect...\n");
+    DEBUG_PRINTF("[Peer Manager] Handling peer disconnect...\n");
 
     if (remove_from_peer_linked_list(peer)) {
         update_pollfd();
@@ -599,7 +600,7 @@ int start_peer_manager(Torrent *torrent){
     while(peer != NULL){
         struct Peer *next = peer->next;
         if(send_handshake_message(peer) == 0){
-            printf("send handshaking message failed\n");
+            DEBUG_PRINTF("send handshaking message failed\n");
         }
         peer = next;
     }
@@ -616,7 +617,7 @@ int start_peer_manager(Torrent *torrent){
                     if(peer->handshaked){
                         uint32_t length;        
                         if (read_n_bytes(&length, 4, peers_sockets[i].fd) == -1) {
-                            printf("RERROR 5\n");
+                            DEBUG_PRINTF("RERROR 5\n");
 
                             remove_from_peer_linked_list(peer);
                             number_of_peers--;
@@ -625,7 +626,7 @@ int start_peer_manager(Torrent *torrent){
                         length = be32toh(length);
                         uint8_t ID;
                         if (read_n_bytes(&ID, 1, peers_sockets[i].fd) == -1) {
-                            printf("RERROR 6\n");
+                            DEBUG_PRINTF("RERROR 6\n");
 
                             remove_from_peer_linked_list(peer);
                             number_of_peers--;
@@ -635,7 +636,7 @@ int start_peer_manager(Torrent *torrent){
                         // choke: <len=0001><id=0>
                         if (ID == 0) {
                             print_ip_address(peer->address);
-                            printf("choked us\n");
+                            DEBUG_PRINTF("choked us\n");
                             peer->peer_choking = 1;
                             peer->am_choking = 1;
                             if(peer->curr_dl == 1){
@@ -662,13 +663,13 @@ int start_peer_manager(Torrent *torrent){
                         // interested: <len=0001><id=2>
                         if(ID == 2) {
                             print_ip_address(peer->address);
-                            printf("interested us\n");
+                            DEBUG_PRINTF("interested us\n");
                             peer->peer_interested = 1;
                         };
                         
                         // not interested: <len=0001><id=3>
                         if(ID == 3) {
-                            printf("uninterested\n");
+                            DEBUG_PRINTF("uninterested\n");
                             peer->peer_interested = 0;
                         };
                         
@@ -677,7 +678,7 @@ int start_peer_manager(Torrent *torrent){
                             uint32_t piece_index;
 
                             if (read_n_bytes(&piece_index, 4, peers_sockets[i].fd) == -1) {
-                                                            printf("RERROR 7\n");
+                                                            DEBUG_PRINTF("RERROR 7\n");
 
                                 remove_from_peer_linked_list(peer);
                                 number_of_peers--;
@@ -719,7 +720,7 @@ int start_peer_manager(Torrent *torrent){
                         
                         // request: <len=0013><id=6><index><begin><length>
                         if(ID == 6) {
-                            printf("request message\n");
+                            DEBUG_PRINTF("request message\n");
 
                             uint32_t pieceIndex = 0;
                             uint32_t begin = 0;
@@ -769,7 +770,7 @@ int start_peer_manager(Torrent *torrent){
                             struct timeval timenow;
                             gettimeofday(&timenow, NULL);
 
-                            printf("[Peer Manager] Got id=7, piece message from peer");
+                            DEBUG_PRINTF("[Peer Manager] Got id=7, piece message from peer");
                             print_ip_address(peer->address);
 
                             if((timenow.tv_sec - peer->download_req_sent_time.tv_sec > 5) && 
@@ -782,7 +783,7 @@ int start_peer_manager(Torrent *torrent){
                                 peer->am_choking = 1;
                                 piece_manager_cancel_request(peer->curr_dl_piece_idx);
                                 if(peer->curr_up == 0 && send_choked_message(peer, 1) == -1){
-                                    printf("cnmd\n");
+                                    DEBUG_PRINTF("cnmd\n");
                                     remove_from_peer_linked_list(peer);
                                     number_of_peers--;
                                 }
@@ -805,10 +806,10 @@ int start_peer_manager(Torrent *torrent){
                         
                         // cancel: <len=0013><id=8><index><begin><length>
                         if(ID == 8) {
-                            printf("Cancel message\n");
+                            DEBUG_PRINTF("Cancel message\n");
                         };
                     }else{
-                        printf("Handshaking with: %d ", peer->port);
+                        DEBUG_PRINTF("Handshaking with: %d ", peer->port);
                         print_ip_address(peer->address);
                         uint8_t pstrlen;
 
@@ -856,8 +857,8 @@ int start_peer_manager(Torrent *torrent){
                             number_of_peers--;
                             continue;
                         };
-                        printf("Handshaking success, get peerid\n");
-                        printf("Start sending  interested message\n");
+                        DEBUG_PRINTF("Handshaking success, get peerid\n");
+                        DEBUG_PRINTF("Start sending  interested message\n");
                         send_interested_message(peer, 1);
                     }
                 }
@@ -878,13 +879,13 @@ int start_peer_manager(Torrent *torrent){
             gettimeofday(&optimistic_unchoking_time, NULL);
         }
         if(current_time.tv_sec - periodic_function_time.tv_sec > 1){
-            printf("---- [running piece manager periodic]\n");
+            DEBUG_PRINTF("---- [running piece manager periodic]\n");
             piece_manager_periodic();
-            printf("---- [running torrent periodic]\n");
+            DEBUG_PRINTF("---- [running torrent periodic]\n");
             torrent_runtime_periodic();
-            printf("---- [running cli periodic]\n");
+            DEBUG_PRINTF("---- [running cli periodic]\n");
             cli_periodic();
-            printf("---- PERIODIC FINISHED ----\n\n\n");
+            DEBUG_PRINTF("---- PERIODIC FINISHED ----\n\n\n");
             gettimeofday(&periodic_function_time, NULL);
         }
         if(current_time.tv_sec - tracker_request_time.tv_sec >= interval){
@@ -949,17 +950,17 @@ int peer_manager_update_download_rate(struct Peer *peer, uint64_t download_rate)
 }
 
 int peer_manager_begin_download(struct Peer* peer, int pieceIndex) {
-    printf("[Peer Manager] beginning download of piece=%d\n", pieceIndex);
+    DEBUG_PRINTF("[Peer Manager] beginning download of piece=%d\n", pieceIndex);
     TEMP_CURRENTLY_DOWNLOADING = 1; // TODO : REMOVE
 
     if(peer->curr_up) {
-        printf("[Peer Manager] Error, cannot download from peer, we are uploading to them!\n");
+        DEBUG_PRINTF("[Peer Manager] Error, cannot download from peer, we are uploading to them!\n");
         print_ip_address(peer->address);
         return 0;
     }
 
     if(peer->peer_choking) {
-        printf("[Peer Manager] Error, cannot download from peer, they are choking us!\n");
+        DEBUG_PRINTF("[Peer Manager] Error, cannot download from peer, they are choking us!\n");
         print_ip_address(peer->address);
         return 0;
     }
@@ -998,13 +999,13 @@ int peer_manager_begin_download(struct Peer* peer, int pieceIndex) {
         peer->curr_dl_next_subpiece++;
         length = PIECE_DOWNLOAD_SIZE < g_torrent->piece_length - begin ? PIECE_DOWNLOAD_SIZE : g_torrent->piece_length - begin;
 
-        printf("getting subpiece, [%d - %d), len=%d\n",
+        DEBUG_PRINTF("getting subpiece, [%d - %d), len=%d\n",
             (int) begin, (int) (begin + length), length);
     }
 
     begin = htobe32(begin);
 
-    printf("download length (for subpiece) = %d bytes\n", length);
+    DEBUG_PRINTF("download length (for subpiece) = %d bytes\n", length);
     length = htobe32(length);
 
     uint8_t buffer[17];
@@ -1015,12 +1016,12 @@ int peer_manager_begin_download(struct Peer* peer, int pieceIndex) {
     memcpy(buffer+13, &length, 4);
 
     if(send_n_bytes(buffer, 17, cur->socket) == -1){
-        printf("[Peer Manager] During begin download, sending download request failed\n");
+        DEBUG_PRINTF("[Peer Manager] During begin download, sending download request failed\n");
         remove_from_peer_linked_list(cur);
         number_of_peers --;
         return 0;
     } else {
-        printf("[Peer Manager] Sent request to download piece %d, to...\n", pieceIndex);
+        DEBUG_PRINTF("[Peer Manager] Sent request to download piece %d, to...\n", pieceIndex);
         print_ip_address(peer->address);
     }
     

@@ -2,6 +2,8 @@
 #ifndef SHARED_H_INCLUDED
 #define SHARED_H_INCLUDED
 
+#define DEBUG_PRINTF(f_, ...) { if(g_debug == 1) printf((f_), ##__VA_ARGS__); };
+
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -12,6 +14,8 @@
 #include <string.h>
 #include <math.h>
 #include "hash.h"
+
+int g_debug;
 
 int read_n_bytes(void* buffer, int bytes, int sock);
 int send_n_bytes(void* buffer, int bytes, int sock);
