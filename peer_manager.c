@@ -16,7 +16,6 @@
 #include "peer_manager.h"
 #include "piece_manager.h"
 
-#define PIECE_DOWNLOAD_SIZE 15000
 #define MAX_PEERS 128
 
 /*
@@ -412,32 +411,31 @@ void peer_manager_upload_download_complete(uint8_t is_upload, struct Peer* peer,
         total_subpieces, peer->curr_dl_next_subpiece);
 
     // IF REMAINING SUBPIECES, DOWNLOAD THE NEXT SUBPIECE
-    if (peer->curr_dl_next_subpiece < total_subpieces) {
-        printf("[Peer Manager] Recursive subpiece download....!!!!!\n");
-        peer_manager_begin_download(peer, piece_index);
-        return;
-    } else {
-        printf("[Peer Manager] Downloaded all subpieces!\n");
-    }
-
-    // IF WE DOWNLOADED ALL PIECES, BROADCAST
-    if (!is_upload) {
-        struct Peer *cur = head_peer;
-        while(cur != NULL){
-            struct Peer *next = cur->next;
-            send_have_message(cur, piece_index);
-            cur = next;
+    if(!is_upload){
+        if (peer->curr_dl_next_subpiece < total_subpieces) {
+            printf("[Peer Manager] Recursive subpiece download....!!!!!\n");
+            peer_manager_begin_download(peer, piece_index);
+            return;
+        } else {
+            printf("[Peer Manager] Downloaded all subpieces!\n");
+            struct Peer *cur = head_peer;
+            while(cur != NULL){
+                struct Peer *next = cur->next;
+                if(peer->curr_up == 0)
+                    send_have_message(cur, piece_index);
+                cur = next;
+            }
+            TEMP_CURRENTLY_DOWNLOADING = 0;
+            peer->curr_dl = 0;
+            peer->curr_dl_next_subpiece = 0;
+            peer->curr_dl_piece_idx = 0;
+            piece_manager_initiate_download();
         }
-        TEMP_CURRENTLY_DOWNLOADING = 0;
-        piece_manager_initiate_download();
+    }else{
+        peer->curr_up = 0;
+        peer->curr_up_piece_idx = 0;
     }
 
-    // mark no longer downloading
-    peer->curr_dl = 0;
-    peer->curr_dl_next_subpiece = 0;
-    peer->curr_dl_piece_idx = 0;
-
-    // update the pollfd
     update_pollfd();
 }
 
@@ -477,7 +475,8 @@ void choking_algorithm(){
     }
 
     //If the peer is first time unchoked, we need to let it know; otherwise not.
-    if(unchoked_four[0] != NULL && in_a_peers_array(old_three, unchoked_four[0]) == 0 && send_choked_message(unchoked_four[0], 0) == -1){
+    if(unchoked_four[0] != NULL && in_a_peers_array(old_three, unchoked_four[0]) == 0 && 
+        unchoked_four[0]->curr_up == 0 && unchoked_four[0]->curr_dl == 0 && send_choked_message(unchoked_four[0], 0) == -1){
         remove_from_peer_linked_list(unchoked_four[0]);
         number_of_peers--;
         unchoked_four[0] = unchoked_four[1];
@@ -485,14 +484,16 @@ void choking_algorithm(){
         unchoked_four[2] = NULL;
     }
 
-    if(unchoked_four[1] != NULL && in_a_peers_array(old_three, unchoked_four[1]) == 0 && send_choked_message(unchoked_four[1], 0) == -1){
+    if(unchoked_four[1] != NULL && in_a_peers_array(old_three, unchoked_four[1]) == 0 && 
+        unchoked_four[1]->curr_up == 0 && unchoked_four[1]->curr_dl == 0 && send_choked_message(unchoked_four[1], 0) == -1){
         remove_from_peer_linked_list(unchoked_four[1]);
         number_of_peers--;
         unchoked_four[1] = unchoked_four[2];
         unchoked_four[2] = NULL;
     }
 
-    if(unchoked_four[2] != NULL && in_a_peers_array(old_three, unchoked_four[2]) == 0 && send_choked_message(unchoked_four[2], 0) == -1){
+    if(unchoked_four[2] != NULL && in_a_peers_array(old_three, unchoked_four[2]) == 0 &&
+        unchoked_four[2]->curr_up == 0 && unchoked_four[2]->curr_dl == 0 && send_choked_message(unchoked_four[2], 0) == -1){
         remove_from_peer_linked_list(unchoked_four[2]);
         number_of_peers--;
         unchoked_four[2] = NULL;
@@ -503,7 +504,7 @@ void choking_algorithm(){
             //The old unchoked peer is no longer unchoked now
             if(old_three[i] != NULL){
                 old_three[i]->am_choking = 1;
-                if(send_choked_message(old_three[i], 1) == -1){
+                if(old_three[i]->curr_up == 0 && old_three[i]->curr_dl == 0 && send_choked_message(old_three[i], 1) == -1){
                     remove_from_peer_linked_list(old_three[i]);
                     number_of_peers--;
                 }
@@ -536,17 +537,20 @@ void optimistic_unchoking(){
     if(unchoked_four[3] != old_rand_peer){
         if(old_rand_peer != NULL){
             old_rand_peer->am_choking = 1;
-            if(send_choked_message(old_rand_peer, 1) == -1){
+            if(old_rand_peer->curr_up == 0 && old_rand_peer->curr_dl == 0 && send_choked_message(old_rand_peer, 1) == -1){
                 remove_from_peer_linked_list(old_rand_peer);
                 number_of_peers --;
             }
         }
-    }
 
-    if(unchoked_four[3] != NULL && send_choked_message(unchoked_four[3], 0) == -1){
-        remove_from_peer_linked_list(unchoked_four[3]);
-        number_of_peers --;
-        unchoked_four[3] = NULL;
+        if(unchoked_four[3] != NULL){
+            unchoked_four[3]->am_choking= 0;
+            if(unchoked_four[3]->curr_up == 0 && unchoked_four[3]->curr_dl == 0 && send_choked_message(unchoked_four[3], 0) == -1){
+                remove_from_peer_linked_list(unchoked_four[3]);
+                number_of_peers --;
+                unchoked_four[3] = NULL;
+            }
+        }
     }
 
     update_pollfd();
@@ -630,13 +634,23 @@ int start_peer_manager(Torrent *torrent){
                         
                         // choke: <len=0001><id=0>
                         if (ID == 0) {
-                            printf("chooked\n");
+                            print_ip_address(peer->address);
+                            printf("choked us\n");
                             peer->peer_choking = 1;
                             peer->am_choking = 1;
-                            if(send_choked_message(peer, 1) == -1){
-                                remove_from_peer_linked_list(peer);
-                                number_of_peers--;
-                                continue;
+                            if(peer->curr_dl == 1){
+                                peer->curr_dl == 0;
+                                peer->curr_dl_begin = 0;
+                                peer->curr_dl_next_subpiece = 0;
+                                peer->curr_dl_piece_idx = 0;
+                                piece_manager_cancel_request_for_peer(peer);
+                            }
+                            if(peer->am_choking == 0){
+                                if(peer->curr_up == 0 && send_choked_message(peer, 1) == -1){
+                                    remove_from_peer_linked_list(peer);
+                                    number_of_peers--;
+                                    continue;
+                                }
                             }
                         };
 
@@ -647,7 +661,8 @@ int start_peer_manager(Torrent *torrent){
                         
                         // interested: <len=0001><id=2>
                         if(ID == 2) {
-                            printf("interested\n");
+                            print_ip_address(peer->address);
+                            printf("interested us\n");
                             peer->peer_interested = 1;
                         };
                         
@@ -704,7 +719,49 @@ int start_peer_manager(Torrent *torrent){
                         
                         // request: <len=0013><id=6><index><begin><length>
                         if(ID == 6) {
-                             printf("request message\n");
+                            printf("request message\n");
+
+                            uint32_t pieceIndex = 0;
+                            uint32_t begin = 0;
+                            uint32_t length = 0;
+
+                            // get the piece index
+                            if (read_n_bytes(&pieceIndex, 4, peers_sockets[i].fd) == -1) {
+                                remove_from_peer_linked_list(peer);
+                                number_of_peers--;
+                                continue;
+                            };
+                            
+                            // get the begin
+                            if (read_n_bytes(&begin, 4, peers_sockets[i].fd) == -1) {
+                                remove_from_peer_linked_list(peer);
+                                number_of_peers--;
+                                continue;
+                            };
+
+                            // get the length
+                            if (read_n_bytes(&length, 4, peers_sockets[i].fd) == -1) {
+                                remove_from_peer_linked_list(peer);
+                                number_of_peers--;
+                                continue;
+                            };
+
+                            pieceIndex = be32toh(pieceIndex);
+                            begin = be32toh(begin);
+                            length = be32toh(length);
+                            
+                            if(length > 16000){
+                                remove_from_peer_linked_list(peer);
+                                number_of_peers--;
+                                continue;
+                            }
+
+                            peer->curr_up = 1;
+                            peer->curr_up_piece_idx = pieceIndex;
+
+                            gettimeofday(&(peer->last_sent_message_time), NULL);
+                            
+                            piece_manager_create_upload_manager(peer, pieceIndex, length, begin);
                         };
                         
                         // piece: <len=0009+X><id=7><index 4><begin 4><block X>
@@ -724,7 +781,7 @@ int start_peer_manager(Torrent *torrent){
                                 peer->curr_dl_next_subpiece = 0;
                                 peer->am_choking = 1;
                                 piece_manager_cancel_request(peer->curr_dl_piece_idx);
-                                if(send_choked_message(peer, 1) == -1){
+                                if(peer->curr_up == 0 && send_choked_message(peer, 1) == -1){
                                     printf("cnmd\n");
                                     remove_from_peer_linked_list(peer);
                                     number_of_peers--;
@@ -756,34 +813,32 @@ int start_peer_manager(Torrent *torrent){
                         uint8_t pstrlen;
 
                         if (read_n_bytes(&pstrlen, 1, peers_sockets[i].fd) == -1) {
-                            printf("RERROR 1\n");
-                            peer_manager_inform_disconnect(peer);
+                            remove_from_peer_linked_list(peer);
+                            number_of_peers--;
                             continue;
                         };
 
                         uint8_t pstr[pstrlen];
 
                         if (read_n_bytes(pstr, pstrlen, peers_sockets[i].fd) == -1) {
-                            printf("RERROR 2\n");
-
-                            peer_manager_inform_disconnect(peer);
+                            remove_from_peer_linked_list(peer);
+                            number_of_peers--;
                             continue;
                         };
 
                         uint8_t reserved[8];
 
                         if (read_n_bytes(reserved, 8, peers_sockets[i].fd) == -1) {
-                            printf("RERROR 3\n");
-                            peer_manager_inform_disconnect(peer);
+                            remove_from_peer_linked_list(peer);
+                            number_of_peers--;
                             continue;
                         };
 
                         uint8_t infohash[20];
 
                         if (read_n_bytes(infohash, 20, peers_sockets[i].fd) == -1) {
-                                                        printf("RERROR 4\n");
-
-                            peer_manager_inform_disconnect(peer);
+                            remove_from_peer_linked_list(peer);
+                            number_of_peers--;
                             continue;
                         };
 
@@ -797,9 +852,8 @@ int start_peer_manager(Torrent *torrent){
                         uint8_t peerid[21] = {0};
 
                         if (read_n_bytes(peerid, 20, peers_sockets[i].fd) == -1) {
-                            printf("RERROR 44\n");
-
-                            peer_manager_inform_disconnect(peer);
+                            remove_from_peer_linked_list(peer);
+                            number_of_peers--;
                             continue;
                         };
                         printf("Handshaking success, get peerid\n");
@@ -857,7 +911,7 @@ int start_peer_manager(Torrent *torrent){
         gettimeofday(&now, NULL);
         while(peer != NULL){
             struct Peer *next = peer->next;
-            if(now.tv_sec - peer->last_sent_message_time.tv_sec > 100){
+            if(now.tv_sec - peer->last_sent_message_time.tv_sec > 100 && peer->curr_up == 0){
                 send_keep_alve_message(peer);
             }
             peer = next;
@@ -898,6 +952,12 @@ int peer_manager_begin_download(struct Peer* peer, int pieceIndex) {
     printf("[Peer Manager] beginning download of piece=%d\n", pieceIndex);
     TEMP_CURRENTLY_DOWNLOADING = 1; // TODO : REMOVE
 
+    if(peer->curr_up) {
+        printf("[Peer Manager] Error, cannot download from peer, we are uploading to them!\n");
+        print_ip_address(peer->address);
+        return 0;
+    }
+
     if(peer->peer_choking) {
         printf("[Peer Manager] Error, cannot download from peer, they are choking us!\n");
         print_ip_address(peer->address);
@@ -916,25 +976,27 @@ int peer_manager_begin_download(struct Peer* peer, int pieceIndex) {
         return 0;
     }
 
+    uint32_t totalRemainingByte = g_torrent->length - (pieceIndex * g_torrent->piece_length);
+
     uint32_t totallen = 13;
     totallen = htobe32(totallen);
     uint8_t ID = 6;
     uint32_t pieceIndex_t = pieceIndex;
     pieceIndex_t = htobe32(pieceIndex_t);
     uint32_t begin = 0;
-    uint32_t length = g_torrent->piece_length;
+    uint32_t length = g_torrent->piece_length < totalRemainingByte ? g_torrent->piece_length : totalRemainingByte;
 
     if (length > PIECE_DOWNLOAD_SIZE) {
         // if we are already downloading this piece, get the next subpiece
         if (
             peer->curr_dl &&
-            peer->curr_dl_piece_idx == pieceIndex
+            peer->curr_dl_piece_idx == (uint32_t)pieceIndex
         ) {
             begin += peer->curr_dl_next_subpiece * PIECE_DOWNLOAD_SIZE;
         }
 
         peer->curr_dl_next_subpiece++;
-        length = PIECE_DOWNLOAD_SIZE;
+        length = PIECE_DOWNLOAD_SIZE < g_torrent->piece_length - begin ? PIECE_DOWNLOAD_SIZE : g_torrent->piece_length - begin;
 
         printf("getting subpiece, [%d - %d), len=%d\n",
             (int) begin, (int) (begin + length), length);

@@ -77,6 +77,12 @@ int piece_manager_get_my_bitfield_size();
 */
 void piece_manager_create_download_manager(struct Peer * peer, uint32_t pieceIndex, int pieceSize, int begin);
 
+/*
+    The Peer Manger calls this function to begin sending a piece to a peer's socket.
+    This occurs after a peer sends a "request" message.
+*/
+void piece_manager_create_upload_manager(struct Peer* peer, uint32_t pieceIndex, int pieceSize, int begin);
+
 // Peer manager call to find what piece to request next and from whom.
 // request - should be initially point to NULL
 // Method will allocate data

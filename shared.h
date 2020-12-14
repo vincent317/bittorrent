@@ -20,7 +20,7 @@ int send_n_bytes(void* buffer, int bytes, int sock);
     Converts a SHA-1 hash (20 bytes) into a string
     The returned string must be free'd
 */
-const char* sha1_to_hexstr(uint8_t* hash);
+char* sha1_to_hexstr(uint8_t* hash);
 
 void print_bitfield(uint8_t *bitfield, int length);
 
