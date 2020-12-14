@@ -81,11 +81,18 @@ void piece_manager_startup(Torrent * torrent) {
                 get_piece_filename(piece_path, pieceIndex, 0);
 
                 uint8_t* piece_hash = sha1_file(piece_path);
+
+                if (piece_hash == NULL) {
+                    continue;
+                }
+
                 uint8_t* piece_hexstr = sha1_to_hexstr(piece_hash);
 
                 if (strcmp(piece_hexstr, pieceName) != 0) {
-                    printf("Error: corrupted piece=%d found; hash doesn't match. skipping.\n",
+                    printf("Error: corrupted piece=%d found; hash doesn't match. deleting.\n",
                         pieceIndex);
+
+                    remove(piece_path);
                     
                     continue;
                 }
@@ -308,7 +315,7 @@ void piece_manager_initiate_download() {
         ptr = ptr->next;
     }
 
-    printf("- %d peers UNCHOKING us\n", num_unchoked);
+    DEBUG_PRINTF("- %d peers UNCHOKING us\n", num_unchoked);
 
     free(listOpenPeer);
 }
@@ -374,6 +381,7 @@ void piece_manager_periodic() {
             }
 
             if(buffer[0] == 's') {
+                close(currentElem->sock);
                 uint32_t totalRemainingByte = torrentCopy->length - (currentElem->pieceIndex * torrentCopy->piece_length);
                 uint32_t length = torrentCopy->piece_length < totalRemainingByte ? torrentCopy->piece_length : totalRemainingByte;
                 uint32_t total_subpieces = ceil(length / PIECE_DOWNLOAD_SIZE);
@@ -448,6 +456,8 @@ void piece_manager_periodic() {
                 }
             }
             else if(buffer[0] == 'f'){
+                close(currentElem->sock);
+
                 currentElem = currentElem->prev;
                 remove_upload_download_pipe(0, currentPipe);
                 remove_requested_piece(currentPieceIndex);

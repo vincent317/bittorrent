@@ -19,6 +19,7 @@ void create_download_manager(UploadDownloadManagerArgs* args) {
     if (bytes_read == -1) {
         // DEBUG_PRINTF("[DL] Error reading data from peer! (bytes_read=%d)\n", bytes_read);
         write(args->write_fd, "f", sizeof(char));
+        close(args->write_fd);
         return;
     } else {
         // get the piece file
@@ -44,6 +45,7 @@ void create_download_manager(UploadDownloadManagerArgs* args) {
             bytes_read, args->pieceIndex, (int) (cursor_pos + bytes_read));
         
         write(args->write_fd, "s", sizeof(char));
+        close(args->write_fd);
         return;
     }
 };

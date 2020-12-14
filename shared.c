@@ -104,7 +104,7 @@ uint8_t* sha1_file(char* file_path) {
     FILE* fp = fopen(file_path, "r");
 
     if (!fp) {
-        printf("error! could not open file '%s'\n", file_path);
+        // printf("error! could not open file '%s'\n", file_path);
         return NULL;
     }
 
