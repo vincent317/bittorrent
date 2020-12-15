@@ -52,6 +52,12 @@ struct OpenPeer{
 
 /////////////////////////////////////////////////////////////////////////
 
+// Number of downloaded piece
+uint32_t num_pieces_downloaded();
+
+// Number of uploaded sub-piece
+uint32_t num_piece_upload();
+
 // A function called every 500ms for perioid tasks
 void piece_manager_periodic();
 
