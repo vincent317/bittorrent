@@ -110,6 +110,9 @@ int create_peer_connection_socket(uint8_t *addr, uint16_t port){
     servAddr.sin_family = AF_INET; // IPv4 address family
     memcpy(&servAddr.sin_addr.s_addr, addr, 4);
     servAddr.sin_port = port;
+
+    printf("Peer Port: %d\n", servAddr.sin_port);
+
   
     if (connect(peer_socket, (struct sockaddr *) &servAddr, sizeof(servAddr)) < 0){
         close(peer_socket);
@@ -190,13 +193,18 @@ struct Peer *prev = NULL;
 }
 
 void parse_peers_string(const char *string, int tn){
+    printf("AAA %d\n", tn);
     for(int i = 0; i < tn;i++){
         uint16_t port;
         memcpy(&port, string + i*6 +4, 2);
         uint8_t ip_arr[4];
         memcpy(ip_arr, string + i*6, 4);
 
-        insert_peerlist_ifnotexists(ip_arr, port);
+        printf("BBB %d\n", i);
+
+        int status = insert_peerlist_ifnotexists(ip_arr, port);
+
+        printf("CC %d\n", status);
 
         //if ((i > 15 && g_debug == 1) || i > 20)
         //    break;
@@ -260,13 +268,17 @@ void send_tracker_request(){
     CURLcode res;
     curl = curl_easy_init();
     if(curl) {
+
+        int numPieceDownload = (int) num_pieces_downloaded() * g_torrent->piece_length;
+        int numPieceUpload = (int) num_piece_upload() * PIECE_DOWNLOAD_SIZE;
+
         char url[1000] = {0};
 
         char *info_hash_encoded = curl_easy_escape(curl, (const char*) g_torrent->info_hash, 20);
         char *peer_id_encoded = curl_easy_escape(curl, peer_id, 20);
         
-        sprintf(url, "%s?info_hash=%s&peer_id=%s&port=6881&uploaded=0&downloaded=0&left=%ld&compact=1&event=started", 
-            g_torrent->tracker_url, info_hash_encoded, peer_id_encoded, g_torrent->length);
+        sprintf(url, "%s?info_hash=%s&peer_id=%s&port=6881&uploaded=%d&downloaded=%d&left=%ld&compact=1&event=started", 
+            g_torrent->tracker_url, info_hash_encoded, peer_id_encoded, numPieceUpload, numPieceDownload, g_torrent->length);
 
         curl_easy_setopt(curl, CURLOPT_URL, url);
 

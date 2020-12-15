@@ -4,6 +4,8 @@
 uint8_t * myBitfield;
 int maxNumPiece;
 Torrent * torrentCopy;
+uint32_t uploadedSubPiece = 0;
+
 
 uint32_t num_pieces_downloaded() {
     uint32_t n = 0;
@@ -16,6 +18,10 @@ uint32_t num_pieces_downloaded() {
 
     return n;
 };
+
+uint32_t num_piece_upload(){
+    return uploadedSubPiece;
+}
 
 void piece_manager_startup(Torrent * torrent) {
     // Set initial for list
@@ -547,6 +553,7 @@ void piece_manager_periodic() {
             }
 
             if(strcmp(buffer, "s") == 0){
+                uploadedSubPiece++;
                 currentElem = currentElem->prev;
                 remove_upload_download_pipe(1, currentPipe);
                 peer_manager_upload_download_complete(1, currentPeer, currentPieceIndex);    
