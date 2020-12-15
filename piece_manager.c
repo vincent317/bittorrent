@@ -114,10 +114,10 @@ void piece_manager_startup(Torrent * torrent) {
                     continue;
                 }
 
-                uint8_t* piece_hexstr = sha1_to_hexstr(piece_hash);
+                char* piece_hexstr = sha1_to_hexstr(piece_hash);
 
                 uint8_t* real_piece_hash = g_torrent->piece_hashes[pieceIndex];
-                uint8_t* real_piece_hexstr = sha1_to_hexstr(real_piece_hash);
+                char* real_piece_hexstr = sha1_to_hexstr(real_piece_hash);
 
                 if (strcmp(piece_hexstr, real_piece_hexstr) != 0) {
                     printf("Error: corrupted piece=%d found; hash doesn't match. deleting.\n",
@@ -437,13 +437,13 @@ void piece_manager_periodic() {
 
                     // Validate SHA1 hash
                     uint8_t* real_piece_hash = g_torrent->piece_hashes[currentPieceIndex];
-                    uint8_t* real_piece_hash_hexstr = sha1_to_hexstr(real_piece_hash);
+                    char* real_piece_hash_hexstr = sha1_to_hexstr(real_piece_hash);
 
                     uint8_t* dl_piece_hash = sha1_file(piece_temp_filename);
                     if (!dl_piece_hash) continue;
-                    uint8_t* dl_piece_hexstr = sha1_to_hexstr(dl_piece_hash);
+                    char* dl_piece_hexstr = sha1_to_hexstr(dl_piece_hash);
 
-                    if (strcmp(dl_piece_hexstr, real_piece_hash_hexstr) != 0) {
+                    if (strcmp((const char * )dl_piece_hexstr, real_piece_hash_hexstr) != 0) {
                         printf("[Piece Manager] - Error, dowload for piece=%d corrupted. Hash does not match!\n",
                             currentPieceIndex);
 

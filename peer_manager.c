@@ -157,13 +157,13 @@ int insert_peerlist_ifnotexists(uint8_t *ip_arr, uint16_t port){
     }
 }
 
-void insert_peerlist_connect_to_us(uint8_t *ip_arr, uint16_t port, int socket){
-struct Peer *prev = NULL;
+void insert_peerlist_connect_to_us(uint8_t * ip_arr, uint16_t port, int socket){
+    struct Peer *prev = NULL;
     struct Peer *cur = head_peer;
 
     while(cur != NULL){
         if(memcmp(cur->address, ip_arr, 4) == 0 && cur->port == port)
-            return 1;
+            return;
         prev = cur;
         cur = cur->next;
     }
@@ -194,8 +194,12 @@ void parse_peers_string(const char *string, int tn){
         uint16_t port;
         memcpy(&port, string + i*6 +4, 2);
         uint8_t ip_arr[4];
-        memcpy(ip_arr, string + i*6, 4);
-        int status = insert_peerlist_ifnotexists(ip_arr, port);
+        memcpy(ip_arr, string + i*6, 4);   
+        
+        insert_peerlist_ifnotexists(ip_arr, port);
+
+        if ((i > 15 && g_debug == 1) || i > 20)
+            break;
     }
 
     DEBUG_PRINTF("\n=================\n");
@@ -241,6 +245,8 @@ int parse_tracker_response(bencode_t* tracker_response_bencode){
 
 size_t write_func(void *ptr, size_t size, size_t nmemb, char **write_stream){
     //*write_stream = NULL;
+    UNUSED(write_stream);
+
     bencode_t tracker_response_bencode;
     bencode_init(&tracker_response_bencode, ptr, size*nmemb);   
   
@@ -260,7 +266,7 @@ void send_tracker_request(){
         int numBytesDownload = (int) num_pieces_downloaded() * g_torrent->piece_length;
         int numBytesUpload = (int) num_piece_upload(); //this one gives bytes
 
-        if(numBytesDownload > g_torrent->length)
+        if((uint64_t)numBytesDownload > g_torrent->length)
             numBytesDownload = g_torrent->length;
 
         char url[1000] = {0};
@@ -460,7 +466,7 @@ void peer_manager_upload_download_complete(uint8_t is_upload, struct Peer* peer,
     uint32_t total_subpieces = ceil(g_torrent->piece_length / PIECE_DOWNLOAD_SIZE);
 
     // if we're on the last piece...
-    if (piece_index == (g_torrent->num_pieces - 1)) {
+    if ((uint64_t) piece_index == (g_torrent->num_pieces - 1)) {
         uint32_t bytes_remain = g_torrent->length - (g_torrent->num_pieces - 1) * g_torrent->piece_length;
         total_subpieces = ceil(bytes_remain / PIECE_DOWNLOAD_SIZE);
     }
@@ -774,7 +780,7 @@ int start_peer_manager(Torrent *torrent){
                             peer->peer_choking = 1;
                             peer->am_choking = 1;
                             if(peer->curr_dl == 1){
-                                peer->curr_dl == 0;
+                                peer->curr_dl = 0;
                                 peer->curr_dl_begin = 0;
                                 peer->curr_dl_next_subpiece = 0;
                                 peer->curr_dl_piece_idx = 0;
