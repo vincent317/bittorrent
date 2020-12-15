@@ -111,9 +111,6 @@ int create_peer_connection_socket(uint8_t *addr, uint16_t port){
     memcpy(&servAddr.sin_addr.s_addr, addr, 4);
     servAddr.sin_port = port;
 
-    printf("Peer Port: %d\n", servAddr.sin_port);
-
-  
     if (connect(peer_socket, (struct sockaddr *) &servAddr, sizeof(servAddr)) < 0){
         close(peer_socket);
         DEBUG_PRINTF("socket connection timeout\n");
@@ -266,8 +263,11 @@ void send_tracker_request(){
     curl = curl_easy_init();
     if(curl) {
 
-        int numPieceDownload = (int) num_pieces_downloaded() * g_torrent->piece_length;
-        int numPieceUpload = (int) num_piece_upload() * PIECE_DOWNLOAD_SIZE;
+        int numBytesDownload = (int) num_pieces_downloaded() * g_torrent->piece_length;
+        int numBytesUpload = (int) num_piece_upload(); //this one gives bytes
+
+        if(numBytesDownload > g_torrent->length)
+            numBytesDownload = g_torrent->length;
 
         char url[1000] = {0};
 
@@ -275,7 +275,7 @@ void send_tracker_request(){
         char *peer_id_encoded = curl_easy_escape(curl, peer_id, 20);
         
         sprintf(url, "%s?info_hash=%s&peer_id=%s&port=6881&uploaded=%d&downloaded=%d&left=%ld&compact=1&event=started", 
-            g_torrent->tracker_url, info_hash_encoded, peer_id_encoded, numPieceUpload, numPieceDownload, g_torrent->length);
+            g_torrent->tracker_url, info_hash_encoded, peer_id_encoded, numBytesUpload, numBytesDownload, g_torrent->length);
 
         curl_easy_setopt(curl, CURLOPT_URL, url);
 
@@ -712,8 +712,6 @@ int start_peer_manager(Torrent *torrent){
 		exit(1);
 	}
 
-
-
     update_pollfd();
 
     while(1){
@@ -725,9 +723,11 @@ int start_peer_manager(Torrent *torrent){
                     socklen_t clientAddrLen = sizeof(clientAddr);
 
                     int peerSocket = accept(clientSock, (struct sockaddr *) &clientAddr, &clientAddrLen);
-
-                    insert_peerlist_connect_to_us(clientAddr.sin_addr.s_addr, clientAddr.sin_port, peerSocket);
+                    uint8_t ip_arr[4];
+                    memcpy(ip_arr, &clientAddr.sin_addr.s_addr, 4);
+                    print_ip_address(ip_arr);
                     
+                    insert_peerlist_connect_to_us(ip_arr, clientAddr.sin_port, peerSocket);
                 }
                 else if(peers_sockets[i].revents == POLLIN){
                     struct Peer *peer = get_peer_from_socket(peers_sockets[i].fd);
