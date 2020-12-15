@@ -187,6 +187,9 @@ void piece_manager_begin_upload_download(
     int fd[2]; // 0=read, 1=write
     pipe(fd);
 
+    if(is_upload)
+        uploadedSubPiece += len;
+
     DEBUG_PRINTF("[Piece Manager] begin up/dl. begin=%d, len=%d, piece=%d\n",
         begin, len, pieceIndex);
 
@@ -553,7 +556,6 @@ void piece_manager_periodic() {
             }
 
             if(strcmp(buffer, "s") == 0){
-                uploadedSubPiece++;
                 currentElem = currentElem->prev;
                 remove_upload_download_pipe(1, currentPipe);
                 peer_manager_upload_download_complete(1, currentPeer, currentPieceIndex);    
