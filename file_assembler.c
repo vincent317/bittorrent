@@ -10,15 +10,14 @@ void file_assembler_begin(Torrent * torrent){
     uint64_t pieceIndex = 0;
     uint32_t pieceSize = torrent->piece_length;
 
-    if(currentFile == NULL){
-        printf("CURRENT FILE IS EMPTY\n");
-    }
-    else{
-        printf("GETTING FILEPATH %s\n", currentFile->full_path);
+    if (currentFile == NULL) {
+        DEBUG_PRINTF("CURRENT FILE IS EMPTY\n");
+    } else {
+        DEBUG_PRINTF("GETTING FILEPATH %s\n", currentFile->full_path);
 
     }
 
-    while(currentFile != NULL){
+    while (currentFile != NULL) {
         FILE * fp;
         FILE * piece;
 
@@ -34,21 +33,21 @@ void file_assembler_begin(Torrent * torrent){
             strcat(backPath, "../");
             chdir(path->component);
 
-            printf("Create folder %s\n", path->component);
+            DEBUG_PRINTF("Create folder %s\n", path->component);
 
             path = path->next;
         }
         chdir(backPath);
 
 
-        printf("Create file %s\n", currentFile->full_path);
+        DEBUG_PRINTF("Create file %s\n", currentFile->full_path);
         fp = fopen(currentFile->full_path, "w");
         
         if(fp == NULL){
-            printf("Fail created file\n");
+            DEBUG_PRINTF("Fail created file\n");
         }
         else{
-            printf("Success created file\n");
+            DEBUG_PRINTF("Success created file\n");
         }
 
         while(total < upperLimit){
@@ -61,14 +60,13 @@ void file_assembler_begin(Torrent * torrent){
             strcat(filePath, "/");
             strcat(filePath, filename);
 
-
-            printf("Try to open piece %s\n", filePath);
+            DEBUG_PRINTF("Try to open piece %s\n", filePath);
             piece = fopen(filePath, "r");
             if(piece == NULL){
-                printf("Fail opening piece %s\n", filePath);
+                DEBUG_PRINTF("Fail opening piece %s\n", filePath);
             }
             else{
-                printf("Success opening piece %s\n", filePath);
+                DEBUG_PRINTF("Success opening piece %s\n", filePath);
             }
 
             if(piece == NULL){
@@ -76,7 +74,7 @@ void file_assembler_begin(Torrent * torrent){
                 fprintf(stderr, "Error opening file: %s\n", strerror( errnum ));
                 char cwd[2000];
                 if (getcwd(cwd, sizeof(cwd)) != NULL) {
-                    printf("%s\n", cwd);
+                    DEBUG_PRINTF("%s\n", cwd);
                 }
             }
 
@@ -119,8 +117,7 @@ void file_assembler_begin(Torrent * torrent){
         fclose(fp);
     }
 
-}
-
+};
 
 void file_assembler_read_then_write(FILE * readFile, FILE * writeFile, uint64_t beginIndex, uint64_t amount){
     uint8_t buffer[2048];
@@ -136,4 +133,4 @@ void file_assembler_read_then_write(FILE * readFile, FILE * writeFile, uint64_t 
         fwrite(buffer, 1, readAmount, writeFile);
         amountLeft = amountLeft - readAmount;
     }
-}
+};

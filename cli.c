@@ -4,18 +4,28 @@
 
 int main(int argc, const char** argv) {
     if (argc != 2 && argc != 3) {
-        printf("Invalid execution, use: ./bittorrent <torrent path> [file/folder?]\n");
+        printf("Invalid execution, use: ./bittorrent <torrent path> [debug, y/n]\n");
         return 0;
     }
 
-    const char* torrent_path = argv[1];
-    const char* seed_location = (argc == 2) ? argv[2] : NULL;
+    g_debug = 0;
 
-    create_torrent_runtime(torrent_path, seed_location);
+    if (argc == 3 && strcmp(argv[2], "y") == 0) {
+        printf("Running in debug mode.....\n");
+        g_debug = 1;
+    }
+
+    // update the root working directory
+    getcwd(&g_rootdir[0], sizeof(g_rootdir));
+    DEBUG_PRINTF("Working Directory: %s\n", g_rootdir);
+
+    // create a new torrent runtime
+    const char* torrent_path = argv[1];
+    create_torrent_runtime(torrent_path);
 
     return 0;
 };
 
 void cli_periodic() {
-    // TODO
+    // nothing needed here for now...
 };

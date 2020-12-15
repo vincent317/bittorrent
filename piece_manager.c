@@ -5,7 +5,19 @@ uint8_t * myBitfield;
 int maxNumPiece;
 Torrent * torrentCopy;
 
-void piece_manager_startup(Torrent * torrent){
+uint32_t num_pieces_downloaded() {
+    uint32_t n = 0;
+
+    for (int i = 0; maxNumPiece > i; i++) {
+        if (have_piece(myBitfield, i)) {
+            n++;
+        }
+    }
+
+    return n;
+};
+
+void piece_manager_startup(Torrent * torrent) {
     // Set initial for list
     torrentCopy = torrent;
 
@@ -17,8 +29,18 @@ void piece_manager_startup(Torrent * torrent){
     // Create folder for pieces if don't exist
     char cwd1[PATH_MAX];
     if (getcwd(cwd1, sizeof(cwd1)) != NULL) {
-        printf("1 Current working dir: %s\n", cwd1);
+       // DEBUG_PRINTF("1 Current working dir: %s\n", cwd1);
     }
+
+    /*
+    for(int i = 0; g_torrent->num_pieces > i; i++) {
+        uint8_t* piece_hash = g_torrent->piece_hashes[i];
+        uint8_t* piece_hash_str = sha1_to_hexstr(piece_hash);
+        printf("%d -> %s\n", i, piece_hash_str);
+    }
+    */
+
+    // exit(1);
     
     mkdir(".torrent_data", 0777);
     chdir(".torrent_data");
@@ -29,15 +51,8 @@ void piece_manager_startup(Torrent * torrent){
 
     char cwd2[PATH_MAX];
     if (getcwd(cwd2, sizeof(cwd2)) != NULL) {
-        printf("2 Current working dir: %s\n", cwd2);
+        // DEBUG_PRINTF("2 Current working dir: %s\n", cwd2);
     }    
-
-
-//    uint32_t fileLen = torrent->length;        // Get the length field in the torrent file
-//    uint32_t pieceLen = torrent->piece_length;      // Get the piece length in the torrent file
-    printf("HERE! num pieces: %ld\n", torrent->num_pieces);
-
-
 
     maxNumPiece = torrent->num_pieces;
     myBitfield = malloc((int) ceil((double) maxNumPiece / 8));
@@ -54,37 +69,73 @@ void piece_manager_startup(Torrent * torrent){
     strcat(folderPath, torrent->hash_str);
    // strcat(folderPath, "/");
 
-    
+    int pieces_loaded = 0;
+
     DIR *folder;
     struct dirent *file;
     if((folder = opendir(folderPath)) != NULL){
         while((file = readdir(folder)) != NULL){
             if(strlen(file->d_name) > 5){
-                char pieceName[41];
-                memset(pieceName, 0, sizeof(char) * 41);
-                int i = (int) (strrchr(file->d_name, '.') - file->d_name);
-                i = i <= 40 ? i : 40;
-                memcpy(pieceName, file->d_name, i);
-                pieceName[i] = '\0';
+                char* pieceName;
 
-                if (strlen(pieceName) != 40) {
-                    printf("ERROR: Corrupted piece cache. Piece length is not 40, name: '%s'!", pieceName);
+                if (strlen(file->d_name) != 40) {
                     continue;
-                };
+                }
+
+                pieceName = file->d_name;
 
                 // Convert pieceHash to byte
                 uint8_t pieceHash[20];
                 hexstr_to_sha1(pieceHash, pieceName);
 
                 // Get piece index from hash and set bitfield
-                double pieceIndex = torrent_hash_to_piece_index(pieceHash);
+                int pieceIndex = torrent_hash_to_piece_index(pieceHash);
+                // printf("Hash to Index: %s --> %d\n", pieceName, pieceIndex);
+
+                if (pieceIndex < 0) {
+                    printf("Error: corrupted piece found; unknown piece hash.\n");
+                    continue;
+                }
+
+                // Validate the hash
+                char piece_path[1024];
+                piece_path[0] = 0;
+                get_piece_filename(piece_path, pieceIndex, 0);
+
+                uint8_t* piece_hash = sha1_file(piece_path);
+
+                if (piece_hash == NULL) {
+                    continue;
+                }
+
+                uint8_t* piece_hexstr = sha1_to_hexstr(piece_hash);
+
+                uint8_t* real_piece_hash = g_torrent->piece_hashes[pieceIndex];
+                uint8_t* real_piece_hexstr = sha1_to_hexstr(real_piece_hash);
+
+                if (strcmp(piece_hexstr, real_piece_hexstr) != 0) {
+                    printf("Error: corrupted piece=%d found; hash doesn't match. deleting.\n",
+                        pieceIndex);
+                    
+                    printf("\texpected: %s\n\treceived: %s\n", real_piece_hexstr, piece_hexstr);
+
+                    // remove(piece_path);
+                    
+                    continue;
+                }
+
+                // Set the bitfield
                 if(pieceIndex >= 0){
                     set_have_piece(myBitfield, pieceIndex);
+                    pieces_loaded++;
                 }
             }
         }
         closedir(folder);
     }
+
+    printf("Loaded %d/%d pieces from storage\n",
+        (int) pieces_loaded,  (int) g_torrent->num_pieces);
 }
 
 int piece_manager_am_interested(struct Peer * peer){
@@ -130,7 +181,7 @@ void piece_manager_begin_upload_download(
     int fd[2]; // 0=read, 1=write
     pipe(fd);
 
-    printf("[Piece Manager] begin up/dl. begin=%d, len=%d, piece=%d\n",
+    DEBUG_PRINTF("[Piece Manager] begin up/dl. begin=%d, len=%d, piece=%d\n",
         begin, len, pieceIndex);
 
     // Malloc args for the upload/download manager
@@ -164,11 +215,7 @@ void piece_manager_create_upload_manager(
 
 
 // Current code can request multiple piece to same peer if that piece is among the rarest.
-void piece_manager_initiate_download(){
-    // TODO: Remove
-    printf("Check TEMP_CURRENTLY_DOWNLOADING %d\n", TEMP_CURRENTLY_DOWNLOADING);
-    //print_bitfield(myBitfield, (int) ceil((double) maxNumPiece / 8));
-    printf("\n");
+void piece_manager_initiate_download() {
     struct Peer * peerList = peer_manager_get_root_peer();
 
     bool anyInterested = false;
@@ -177,11 +224,13 @@ void piece_manager_initiate_download(){
         anyInterested = anyInterested || piece_manager_am_interested(peerList);
         peerList = peerList->next;
     }
-    printf("Is there any peer that I am still interested in? %d\n", anyInterested);
-   /* if (TEMP_CURRENTLY_DOWNLOADING) {
-        printf("Download in progress....\n");
+
+    // DEBUG_PRINTF("Is there any peer that I am still interested in? %d\n", anyInterested);
+   
+    if (DEBUG_CURRENTLY_DOWNLOADING && g_debug == 1) {
+        DEBUG_PRINTF("[Debug Mode] Skipping begin now download, download in progress\n");
         return;
-    }*/
+    }
     
     struct Peer * p = peer_manager_get_root_peer();
     int numOpen = 0;
@@ -207,17 +256,20 @@ void piece_manager_initiate_download(){
     int minOccur = INT_MAX;             // The number of peer that have the minPiece 
     int minPiece = -1;                  // The current rarest piece
 
-    printf("[Piece Manager] initiating download.. num pieces: %d!!\n", maxNumPiece);
+    // DEBUG_PRINTF("[Piece Manager] Downloading piece: %d/%d!!\n", maxNumPiece);
 
     for(int i = 0; i < maxNumPiece; i++){
         // Check that client don't have piece and had not send a request for the piece
-        if(i == 85){
-            printf("Checking 86th piece\n");
-            printf("Do I not have the piece %d\n Am I currently requesting the piece? %d\n Peer Sock %d\n ",
+        /*
+        if(i == 85) {
+            DEBUG_PRINTF("Checking 86th piece\n");
+            DEBUG_PRINTF("Do I not have the piece %d\n Am I currently requesting the piece? %d\n Peer Sock %d\n ",
             !have_piece(myBitfield, i),
             !currently_requesting_piece(i),
             get_peer_socket_from_piece(i));
         }
+        */
+
         if(!have_piece(myBitfield, i) && !currently_requesting_piece(i)){
             // printf("checking for piece %d\n", i);            
             int chance = 6;
@@ -230,11 +282,13 @@ void piece_manager_initiate_download(){
                 // Client is interested and peer is not choking and 
                 // have current look at piece that client don't have
                 if(i == 85){
-                    printf("Had not requesting from this peer %d \n not downloading from this peer %d \n peer is not choking %d \n peer have this piece %d\n", 
+                    /*
+                    DEBUG_PRINTF("Had not requesting from this peer %d \n not downloading from this peer %d \n peer is not choking %d \n peer have this piece %d\n", 
                     !currently_requesting_piece_from(listOpenPeer[pos].peer->socket),
                     !(listOpenPeer[pos].peer)->curr_dl,
                     (listOpenPeer[pos].peer)->peer_choking == 0,
                     have_piece((listOpenPeer[pos].peer)->bitfield, i));
+                    */
                 }
 
                 if(
@@ -262,42 +316,33 @@ void piece_manager_initiate_download(){
         }
     }
 
-
     if(minPiece != -1) {
-        printf("[Piece Manager] beginning download on piece index : %d\n", minPiece);
+        DEBUG_PRINTF("[Piece Manager] Beginning download on piece index : %d\n", minPiece);
 
         if (smallest == NULL) {
-            printf("-- error: piece manager selected NULL peer!\n");
+            DEBUG_PRINTF("-- error: piece manager selected NULL peer!\n");
         }
-
-        printf("Aaaaa\n");
 
         peer_manager_begin_download(smallest, minPiece);
 
-        printf("Bbbbbbb\n");
-
         // Track piece that have send request for
         add_requested_piece(smallest->socket, minPiece);
-
-        printf("Ccccc\n");
     } else {
-        printf("[Piece Manager] could not identify piece to download!\n");
+        DEBUG_PRINTF("[Piece Manager] could not identify piece to download!\n");
     }
 
     struct Peer* ptr = peer_manager_get_root_peer();
     uint16_t num_unchoked = 0;
 
     while (ptr != NULL) {
-        if (ptr->peer_choking == 0){
-            //print_bitfield(ptr->bitfield, ptr->bitfield_length);
-            printf("Peer Socket %d\n", ptr->socket);
+        if (ptr->peer_choking == 0) {
             num_unchoked++;
         }
         
         ptr = ptr->next;
     }
 
-    printf("- %d peers UNCHOKING us\n", num_unchoked);
+    DEBUG_PRINTF("- %d peers UNCHOKING us\n", num_unchoked);
 
     free(listOpenPeer);
 }
@@ -339,13 +384,13 @@ void piece_manager_periodic() {
         exit(EXIT_FAILURE);
     }
 
-    printf("[Piece Manager Periodic] Checking to see if any new DL info came in\n");
+    // DEBUG_PRINTF("[Piece Manager Periodic] Checking to see if any new DL info came in\n");
     currentElem = downloadPipeList->next;
     while(currentElem != downloadPipeList){
         if(FD_ISSET(currentElem->sock, &downloadPipeSet)){
             char buffer[1];
             read(currentElem->sock, buffer, 1);
-            printf("[Piece Manager Periodic] Got code %c\n", buffer[0]);
+            // DEBUG_PRINTF("[Piece Manager Periodic] Got code %c\n", buffer[0]);
 
             int currentPipe = currentElem->sock;
             uint32_t currentPieceIndex = currentElem->pieceIndex;
@@ -363,6 +408,7 @@ void piece_manager_periodic() {
             }
 
             if(buffer[0] == 's') {
+                close(currentElem->sock);
                 uint32_t totalRemainingByte = torrentCopy->length - (currentElem->pieceIndex * torrentCopy->piece_length);
                 uint32_t length = torrentCopy->piece_length < totalRemainingByte ? torrentCopy->piece_length : totalRemainingByte;
                 uint32_t total_subpieces = ceil(length / PIECE_DOWNLOAD_SIZE);
@@ -371,15 +417,46 @@ void piece_manager_periodic() {
                 remove_upload_download_pipe(0, currentPipe);
 
                 // Downloaded the whole piece
-             /*   if(!(currentPeer->curr_dl_next_subpiece < total_subpieces)){
-                    set_have_piece(myBitfield, currentPieceIndex);
+                if(!(currentPeer->curr_dl_next_subpiece < total_subpieces)) {
                     remove_requested_piece(currentPieceIndex);
+
+                    // Get file names
+                    char piece_perm_filename[1024] = {0};
+                    char piece_temp_filename[1024] = {0};
+                    get_piece_filename(piece_perm_filename, currentPieceIndex, 0);
+                    get_piece_filename(piece_temp_filename, currentPieceIndex, 1);
+
+                    // Validate SHA1 hash
+                    uint8_t* real_piece_hash = g_torrent->piece_hashes[currentPieceIndex];
+                    uint8_t* real_piece_hash_hexstr = sha1_to_hexstr(real_piece_hash);
+
+                    uint8_t* dl_piece_hash = sha1_file(piece_temp_filename);
+                    if (!dl_piece_hash) continue;
+                    uint8_t* dl_piece_hexstr = sha1_to_hexstr(dl_piece_hash);
+
+                    if (strcmp(dl_piece_hexstr, real_piece_hash_hexstr) != 0) {
+                        printf("[Piece Manager] - Error, dowload for piece=%d corrupted. Hash does not match!\n",
+                            currentPieceIndex);
+
+                        continue;
+                    } else {
+                        uint32_t num_dl = num_pieces_downloaded();
+                        float pct = ((float) num_dl / (float) g_torrent->num_pieces) * 100.0;
+                        printf("[Piece Manager] Downloaded %d/%d pieces (%d pct complete)\n",
+                            (int) num_dl, (int) g_torrent->num_pieces, (int) pct);
+                    }
+                    
+                    // Copy to permanant storage
+                    if (cp(piece_perm_filename, piece_temp_filename) != 0) {
+                        printf("\n[Piece Manager] ERROR!!! Unable to store piece file!!!!\n\n");
+                    } else {
+                        set_have_piece(myBitfield, currentPieceIndex);
+                    }
                 }
-                */
                
                 // Delete below when the above is uncommented
-                set_have_piece(myBitfield, currentPieceIndex);
-                remove_requested_piece(currentPieceIndex);
+                // set_have_piece(myBitfield, currentPieceIndex);
+                // remove_requested_piece(currentPieceIndex);
                 
 
                 if(peerSocket != -1){
@@ -387,9 +464,11 @@ void piece_manager_periodic() {
                 }
 
                 if(have_all_piece()){
-                    printf("------ALL PIECES DOWNLOADED!\n------");
+                    printf("\nALL PIECES DOWNLOADED!\n");
                     peer_manager_complete();
                     file_assembler_begin(torrentCopy);
+                    printf("All files assembled! Terminating.\n\n");
+                    exit(1);
                 }
             }
             else if(buffer[0] == 'r'){
@@ -408,6 +487,8 @@ void piece_manager_periodic() {
                 }
             }
             else if(buffer[0] == 'f'){
+                close(currentElem->sock);
+
                 currentElem = currentElem->prev;
                 remove_upload_download_pipe(0, currentPipe);
                 remove_requested_piece(currentPieceIndex);

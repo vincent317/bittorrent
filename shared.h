@@ -2,6 +2,11 @@
 #ifndef SHARED_H_INCLUDED
 #define SHARED_H_INCLUDED
 
+#define MAX_PIECE_SIZE 256000
+#define PIECE_DOWNLOAD_SIZE 15000.0
+#define DEBUG_PRINTF(f_, ...) { if(g_debug == 1) printf((f_), ##__VA_ARGS__); };
+#define DEBUG_PRINT_NET(f_, ...) { if(false) printf((f_), ##__VA_ARGS__); };
+
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -13,8 +18,54 @@
 #include <math.h>
 #include "hash.h"
 
+/*
+    The Torrent structure contains constant information on a particular torrent
+    It does NOT have any state date related to the current progress on downloading
+    a torrent or otherwise
+*/
+typedef struct TorrentFilePath {
+    struct TorrentFilePath* next;
+    char component[256];
+} TorrentFilePath;
+
+typedef struct TorrentFile {
+    struct TorrentFile* next_file;
+    TorrentFilePath* path;
+    uint64_t file_len;
+    char full_path[2048];
+} TorrentFile;
+
+typedef struct Torrent {
+    uint8_t info_hash[20];
+    const char* hash_str;
+    const char* tracker_url;
+    const char* name;
+    uint8_t multiple_files;
+    uint64_t length;
+    uint64_t num_pieces;
+    uint64_t piece_length;
+    uint8_t** piece_hashes;
+    TorrentFile* files;
+} Torrent;
+
+/*
+    A TorrentRuntime structure stores date related to the runtime or
+    execution of a particular torrent.
+*/
+typedef struct {
+    Torrent* torrent;
+} TorrentRuntime;
+
+Torrent* g_torrent;
+char g_rootdir[1024];
+int g_debug;
+
 int read_n_bytes(void* buffer, int bytes, int sock);
 int send_n_bytes(void* buffer, int bytes, int sock);
+
+void get_piece_filename(char* dst, int piece_index, int temp);
+int cp(const char *to, const char *from);
+uint8_t* sha1_file(char* file_path);
 
 /*
     Converts a SHA-1 hash (20 bytes) into a string

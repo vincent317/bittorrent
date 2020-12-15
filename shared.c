@@ -1,9 +1,12 @@
 #include <string.h>
 #include "shared.h"
 #include <netinet/tcp.h>
- #include <arpa/inet.h>
+#include <arpa/inet.h>
 #include <sys/socket.h>
 #include <sys/time.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <errno.h>
 
 void print_bitfield(uint8_t *bitfield, int length){
     for(int i= 0; i < length; i++){
@@ -26,6 +29,25 @@ char* sha1_to_hexstr(uint8_t* sha1_hash_binary) {
     return (char*) hash_hex;
 };
 
+void get_piece_filename(char* dst, int piece_index, int temp) {
+    uint8_t* piece_hash = g_torrent->piece_hashes[piece_index];
+    char* piece_hash_str = sha1_to_hexstr(piece_hash);
+    
+    // TEMP: ./torrent_data/<torrent id>/temp/<piece hash>_<unique thread id>
+    // FINAL: ./torrent_data/<torrent id>/<piece hash>
+    strcat(dst, g_rootdir);
+    strcat(dst, "/.torrent_data/");
+    strcat(dst, g_torrent->hash_str);
+    strcat(dst, "/");
+
+    if (temp == 1) {
+        strcat(dst, "temp/");
+        strcat(dst, piece_hash_str);
+    } else {
+        strcat(dst, piece_hash_str);
+    }
+};
+
 // Converts a 40-char string into 20-byte hash
 void hexstr_to_sha1(uint8_t* dst_hash, char* hex_str){
     int pos;
@@ -43,16 +65,16 @@ void hexstr_to_sha1(uint8_t* dst_hash, char* hex_str){
 };
 
 int read_n_bytes(void *buffer, int bytes_expected, int read_socket) {
+    // printf("Reading %d bytes from socket=%d\n", bytes_expected, read_socket);
     int bytes_received = 0;
     int bytes_read = 0;
-    //int i = 0;
 
     while(bytes_received < bytes_expected) {
         bytes_read = recv(read_socket, buffer + bytes_received, bytes_expected-bytes_received, 0);
 
         if(bytes_read <= 0) {
-            printf("[Shared] Error: Reading %d bytes from socket %d failed (code=%d)\n",
-                bytes_expected, read_socket, bytes_read);
+            /* DEV_PRINTF("[Shared] Error: Reading %d bytes from socket %d failed (code=%d)\n",
+                // bytes_expected, read_socket, bytes_read); */
             
             return -1;
         }
@@ -77,6 +99,101 @@ int send_n_bytes(void *buffer, int bytes_expected, int send_socket){
     }
 
 	return bytes_sent;
+};
+
+uint8_t* sha1_file(char* file_path) {
+    FILE* fp = fopen(file_path, "r");
+
+    if (!fp) {
+        // printf("error! could not open file '%s'\n", file_path);
+        return NULL;
+    }
+
+    // get file size
+    fseek(fp, 0L, SEEK_END);
+    long int sz = ftell(fp);
+    rewind(fp);
+
+    // read in the data
+    uint8_t* file_data = malloc(sizeof(uint8_t) * sz);
+    fread(file_data, sz, 1, fp);
+    fclose(fp);
+
+    // hash the data
+    uint8_t* file_hash = malloc(sizeof(uint8_t) * 20);
+    struct sha1sum_ctx* ctx = sha1sum_create(NULL, 0);            
+    sha1sum_finish(ctx, file_data, sizeof(uint8_t) * sz, file_hash);
+    sha1sum_destroy(ctx);
+
+    free(file_data);
+    return file_hash;
+};
+
+/*
+    Source:
+    https://stackoverflow.com/questions/2180079/how-can-i-copy-a-file-on-unix-using-c
+*/
+
+int cp(const char *to, const char *from) {
+    int fd_to, fd_from;
+    char buf[4096];
+    ssize_t nread;
+
+    fd_from = open(from, O_RDONLY);
+    if (fd_from < 0)
+        return -1;
+
+    fd_to = open(to, O_WRONLY | O_CREAT, 0666);
+    if (fd_to < 0) {
+        close(fd_from);
+        if (fd_to >= 0)
+            close(fd_to);
+
+        return -1;
+    }
+
+    while (nread = read(fd_from, buf, sizeof buf), nread > 0)
+    {
+        char *out_ptr = buf;
+        ssize_t nwritten;
+
+        do {
+            nwritten = write(fd_to, out_ptr, nread);
+
+            if (nwritten >= 0)
+            {
+                nread -= nwritten;
+                out_ptr += nwritten;
+            }
+            else if (errno != EINTR)
+            {
+                close(fd_from);
+                if (fd_to >= 0)
+                    close(fd_to);
+
+                return -1;
+            }
+        } while (nread > 0);
+    }
+
+    if (nread == 0)
+    {
+        if (close(fd_to) < 0)
+        {
+            fd_to = -1;
+            close(fd_from);
+            if (fd_to >= 0)
+                close(fd_to);
+
+            return -1;
+        }
+        close(fd_from);
+
+        /* Success! */
+        return 0;
+    }
+
+    return -1;
 };
 
 /*
