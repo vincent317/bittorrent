@@ -157,12 +157,12 @@ int insert_peerlist_ifnotexists(uint8_t *ip_arr, uint16_t port){
     }
 }
 
-void insert_peerlist_connect_to_us(uint32_t ip_arr, uint16_t port, int socket){
+void insert_peerlist_connect_to_us(uint8_t * ip_arr, uint16_t port, int socket){
     struct Peer *prev = NULL;
     struct Peer *cur = head_peer;
 
     while(cur != NULL){
-        if(memcmp(cur->address, &ip_arr, 4) == 0 && cur->port == port)
+        if(memcmp(cur->address, ip_arr, 4) == 0 && cur->port == port)
             return;
         prev = cur;
         cur = cur->next;
@@ -170,7 +170,7 @@ void insert_peerlist_connect_to_us(uint32_t ip_arr, uint16_t port, int socket){
 
     number_of_peers ++;
     cur = calloc(sizeof(struct Peer), 1);
-    memcpy(cur->address, &ip_arr, 4);
+    memcpy(cur->address, ip_arr, 4);
     cur->connect_to_use = 1;
     cur->port = port;
     cur->next = NULL;
@@ -198,8 +198,8 @@ void parse_peers_string(const char *string, int tn){
         
         insert_peerlist_ifnotexists(ip_arr, port);
 
-        //if ((i > 15 && g_debug == 1) || i > 20)
-        //    break;
+        if ((i > 15 && g_debug == 1) || i > 20)
+            break;
     }
 
     DEBUG_PRINTF("\n=================\n");
@@ -266,7 +266,7 @@ void send_tracker_request(){
         int numBytesDownload = (int) num_pieces_downloaded() * g_torrent->piece_length;
         int numBytesUpload = (int) num_piece_upload(); //this one gives bytes
 
-        if(numBytesDownload > g_torrent->length)
+        if((uint64_t)numBytesDownload > g_torrent->length)
             numBytesDownload = g_torrent->length;
 
         char url[1000] = {0};
