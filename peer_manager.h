@@ -29,6 +29,8 @@ struct Peer{
     uint64_t curr_dl_piece_idx;
     uint8_t curr_up; // 1=uploading, 0=not uploading
     uint64_t curr_up_piece_idx;
+
+    uint8_t connect_to_use; // 1 for peer connecting with me, 0 for me connecting with them
 };
 
 //returns the root peer of the peer linked list
