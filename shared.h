@@ -4,7 +4,8 @@
 
 #define MAX_PIECE_SIZE 256000
 #define PIECE_DOWNLOAD_SIZE 15000.0
-#define DEBUG_PRINTF(f_, ...) { if(g_debug == 1) printf((f_), ##__VA_ARGS__); };
+#define DEBUG_PRINTF(f_, ...) { if(g_debug == 1 || true) printf((f_), ##__VA_ARGS__); };
+#define DEBUG_PRINT_NET(f_, ...) { if(g_debug == 1 || true) printf((f_), ##__VA_ARGS__); };
 
 #include <stdio.h>
 #include <stdint.h>

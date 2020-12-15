@@ -154,8 +154,8 @@ void piece_manager_begin_upload_download(
     int fd[2]; // 0=read, 1=write
     pipe(fd);
 
-    /* DEBUG_PRINTF("[Piece Manager] begin up/dl. begin=%d, len=%d, piece=%d\n",
-        begin, len, pieceIndex); */
+    DEBUG_PRINTF("[Piece Manager] begin up/dl. begin=%d, len=%d, piece=%d\n",
+        begin, len, pieceIndex);
 
     // Malloc args for the upload/download manager
     UploadDownloadManagerArgs* args = malloc(sizeof(UploadDownloadManagerArgs));

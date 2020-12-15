@@ -22,6 +22,9 @@ void create_download_manager(UploadDownloadManagerArgs* args) {
         close(args->write_fd);
         return;
     } else {
+        DEBUG_PRINTF("[Download Manager] Read %d bytes from socket=%d\n",
+            bytes_read, args->peer->socket);
+
         // get the piece file
         char piece_temp_filename[1024] = {0};
         get_piece_filename(piece_temp_filename, args->pieceIndex, 1);
