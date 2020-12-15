@@ -65,7 +65,7 @@ void hexstr_to_sha1(uint8_t* dst_hash, char* hex_str){
 };
 
 int read_n_bytes(void *buffer, int bytes_expected, int read_socket) {
-    printf("Reading %d bytes from socket=%d\n", bytes_expected, read_socket);
+    // printf("Reading %d bytes from socket=%d\n", bytes_expected, read_socket);
     int bytes_received = 0;
     int bytes_read = 0;
 

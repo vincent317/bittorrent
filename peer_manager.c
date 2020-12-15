@@ -99,7 +99,7 @@ int create_peer_connection_socket(uint8_t *addr, uint16_t port){
     }
 
     struct timeval timeout;
-	timeout.tv_sec  = 10;  
+	timeout.tv_sec  = 2;  
 	timeout.tv_usec = 0; 
 	setsockopt(peer_socket, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
 	setsockopt(peer_socket, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
@@ -165,7 +165,7 @@ void parse_peers_string(const char *string, int tn){
 
         insert_peerlist_ifnotexists(ip_arr, port);
 
-        if ((i > 5 && g_debug == 1) || i > 20)
+        if ((i > 15 && g_debug == 1) || i > 20)
             break;
     }
 
@@ -392,7 +392,6 @@ void send_have_message(struct Peer *peer, int piece_index){
     if (peer == NULL)
         return;
 
-    printf("broadcast - A\n");
     uint32_t len =5;
     len = htobe32(len);
     uint8_t ID = 4;
@@ -403,19 +402,13 @@ void send_have_message(struct Peer *peer, int piece_index){
     p_i = htobe32(p_i);
     memcpy(buffer + 5, &p_i, 4);
 
-    printf("broadcast - B\n");
-
     if(send_n_bytes(buffer, 9, peer->socket) == -1){
-        printf("broadcast - c\n");
         remove_from_peer_linked_list(peer);
         update_pollfd();
         number_of_peers --;
     }else{
-        printf("broadcast - d\n");
         gettimeofday(&(peer->last_sent_message_time), NULL);
     }
-
-    printf("broadcast - e\n");
 }
 
 void peer_manager_upload_download_complete(uint8_t is_upload, struct Peer* peer, int piece_index){
@@ -425,6 +418,12 @@ void peer_manager_upload_download_complete(uint8_t is_upload, struct Peer* peer,
     }
 
     uint32_t total_subpieces = ceil(g_torrent->piece_length / PIECE_DOWNLOAD_SIZE);
+
+    // if we're on the last piece...
+    if (piece_index == (g_torrent->num_pieces - 1)) {
+        uint32_t bytes_remain = g_torrent->length - (g_torrent->num_pieces - 1) * g_torrent->piece_length;
+        total_subpieces = ceil(bytes_remain / PIECE_DOWNLOAD_SIZE);
+    }
 
     DEBUG_PRINTF("[Peer Manager] - Downloaded %d/%d subpieces.\n",
         peer->curr_dl_next_subpiece, total_subpieces);
@@ -665,8 +664,11 @@ int start_peer_manager(Torrent *torrent){
                         length = be32toh(length);
                         DEBUG_PRINT_NET("[Peer Manager] - len=%d\n", (int) length);
 
+                        // TODO
                         if (((int) length) < 0 || length > 16000) exit(1);
 
+                        // keep alive
+                        if (length == 0) continue;
 
                         uint8_t ID;
                         if (read_n_bytes(&ID, 1, peers_sockets[i].fd) == -1) {
@@ -1031,6 +1033,7 @@ int peer_manager_begin_download(struct Peer* peer, int pieceIndex) {
     }
 
     uint32_t totalRemainingByte = g_torrent->length - (pieceIndex * g_torrent->piece_length);
+    DEBUG_PRINTF("[Peer Manager] Bytes until end: %d\n", (int) totalRemainingByte);
 
     uint32_t totallen = 13;
     totallen = htobe32(totallen);
@@ -1049,12 +1052,16 @@ int peer_manager_begin_download(struct Peer* peer, int pieceIndex) {
             begin += peer->curr_dl_next_subpiece * PIECE_DOWNLOAD_SIZE;
         }
 
-        peer->curr_dl_next_subpiece++;
+        // peer->curr_dl_next_subpiece++;        
         length = PIECE_DOWNLOAD_SIZE < g_torrent->piece_length - begin ? PIECE_DOWNLOAD_SIZE : g_torrent->piece_length - begin;
 
         DEBUG_PRINTF("[Peer Manager] - Sending request to peer for subpiece, [%d - %d), len=%d, piece=%d\n",
             (int) begin, (int) (begin + length), length, pieceIndex);
     }
+
+    peer->curr_dl_next_subpiece++;
+
+    DEBUG_PRINTF("[Peer Manager] begin=%d, length=%d\n", begin, length);
 
     begin = htobe32(begin);
     length = htobe32(length);
