@@ -237,9 +237,9 @@ int parse_bencode(bencode_t* torrent_bencode, Torrent* torrent) {
 };
 
 int torrent_hash_to_piece_index(uint8_t* hash) {
-    for (int i = 0; g_torrent->num_pieces > i; i++) {
+    for (int i = 0; g_torrent->num_pieces > (uint64_t)i; i++) {
         for (int j = 0; 20 > j; j++) {
-            long int idx = 20*i + j;
+            //long int idx = 20*i + j;
 
             if (hash[j] != g_torrent->piece_hashes[i][j]) break;
             if (j == 19) return i;
