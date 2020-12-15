@@ -37,6 +37,7 @@ uint16_t readable_peers = 0;
 struct pollfd peers_sockets[MAX_PEERS];
 struct Peer *unchoked_four[4];
 Torrent * g_torrent;
+int clientSock;
 
 uint16_t DEBUG_CURRENTLY_DOWNLOADING = 0;
 
@@ -109,7 +110,7 @@ int create_peer_connection_socket(uint8_t *addr, uint16_t port){
     servAddr.sin_family = AF_INET; // IPv4 address family
     memcpy(&servAddr.sin_addr.s_addr, addr, 4);
     servAddr.sin_port = port;
-  
+
     if (connect(peer_socket, (struct sockaddr *) &servAddr, sizeof(servAddr)) < 0){
         close(peer_socket);
         DEBUG_PRINTF("socket connection timeout\n");
@@ -156,17 +157,45 @@ int insert_peerlist_ifnotexists(uint8_t *ip_arr, uint16_t port){
     }
 }
 
+void insert_peerlist_connect_to_us(uint8_t *ip_arr, uint16_t port, int socket){
+struct Peer *prev = NULL;
+    struct Peer *cur = head_peer;
+
+    while(cur != NULL){
+        if(memcmp(cur->address, ip_arr, 4) == 0 && cur->port == port)
+            return 1;
+        prev = cur;
+        cur = cur->next;
+    }
+
+    number_of_peers ++;
+    cur = calloc(sizeof(struct Peer), 1);
+    memcpy(cur->address, ip_arr, 4);
+    cur->connect_to_use = 1;
+    cur->port = port;
+    cur->next = NULL;
+    cur->socket = socket;
+    cur->handshaked = 0;
+    cur->peer_choking = 1;
+    cur->am_choking = 1;
+    cur->bitfield = calloc((uint32_t) ceil((double) g_torrent->num_pieces / 8), 1);
+    cur->bitfield_length = (uint32_t) ceil((double) g_torrent->num_pieces / 8);
+    gettimeofday(&(cur->last_received_message_time), NULL);
+    gettimeofday(&(cur->last_sent_message_time), NULL);
+    if(head_peer == NULL){
+        head_peer = cur;
+    }else{
+        prev->next = cur;
+    }
+}
+
 void parse_peers_string(const char *string, int tn){
     for(int i = 0; i < tn;i++){
         uint16_t port;
         memcpy(&port, string + i*6 +4, 2);
         uint8_t ip_arr[4];
         memcpy(ip_arr, string + i*6, 4);
-
-        insert_peerlist_ifnotexists(ip_arr, port);
-
-        if ((i > 15 && g_debug == 1) || i > 20)
-            break;
+        int status = insert_peerlist_ifnotexists(ip_arr, port);
     }
 
     DEBUG_PRINTF("\n=================\n");
@@ -227,13 +256,20 @@ void send_tracker_request(){
     CURLcode res;
     curl = curl_easy_init();
     if(curl) {
+
+        int numBytesDownload = (int) num_pieces_downloaded() * g_torrent->piece_length;
+        int numBytesUpload = (int) num_piece_upload(); //this one gives bytes
+
+        if(numBytesDownload > g_torrent->length)
+            numBytesDownload = g_torrent->length;
+
         char url[1000] = {0};
 
         char *info_hash_encoded = curl_easy_escape(curl, (const char*) g_torrent->info_hash, 20);
         char *peer_id_encoded = curl_easy_escape(curl, peer_id, 20);
         
-        sprintf(url, "%s?info_hash=%s&peer_id=%s&port=6881&uploaded=0&downloaded=0&left=%ld&compact=1&event=started", 
-            g_torrent->tracker_url, info_hash_encoded, peer_id_encoded, g_torrent->length);
+        sprintf(url, "%s?info_hash=%s&peer_id=%s&port=6881&uploaded=%d&downloaded=%d&left=%ld&compact=1&event=started", 
+            g_torrent->tracker_url, info_hash_encoded, peer_id_encoded, numBytesUpload, numBytesDownload, g_torrent->length);
 
         curl_easy_setopt(curl, CURLOPT_URL, url);
 
@@ -294,6 +330,10 @@ void update_pollfd() {
         }
         ptr = ptr->next;
     }
+
+    peers_sockets[num_read_peers].fd = clientSock;
+    peers_sockets[num_read_peers].events = POLLIN;
+    num_read_peers++;
 
     readable_peers = num_read_peers;
 }
@@ -631,13 +671,59 @@ int start_peer_manager(Torrent *torrent){
         }
         peer = next;
     }
+
+    uint16_t port = 10000;
+    struct sockaddr_in serverAddress;
+	memset(&serverAddress, 0, sizeof(serverAddress));
+	serverAddress.sin_family = AF_INET;
+	serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);
+	serverAddress.sin_port = htons(port);
+
+	// Create a socket
+	clientSock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	if(clientSock < 0){
+		perror("Making socket fail");
+		exit(1);
+	}
+
+/*	// Set up for multiple connection socket
+	if( setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (char *)&opt,  
+          sizeof(opt)) < 0 ){	     
+        perror("setsockopt");   
+        exit(EXIT_FAILURE);   
+    }  
+*/
+
+	// Bind to the local address
+	if(bind(clientSock, (struct sockaddr*) &serverAddress, sizeof(serverAddress)) < 0){
+		perror("Binding fail");
+		exit(1);
+	}
+
+	// Let socket listen for incoming connection from the client
+	if(listen(clientSock, 15) < 0){
+		perror("Listening to incoming connection from client failed");
+		exit(1);
+	}
+
     update_pollfd();
 
     while(1){
         if (poll(peers_sockets, readable_peers, 0) > 0) {
             int n = readable_peers;
             for(int i = 0; i<n; i++){
-                if(peers_sockets[i].revents == POLLIN){
+                if(peers_sockets[i].fd == clientSock && peers_sockets[i].revents == POLLIN){
+                    struct sockaddr_in clientAddr;
+                    socklen_t clientAddrLen = sizeof(clientAddr);
+
+                    int peerSocket = accept(clientSock, (struct sockaddr *) &clientAddr, &clientAddrLen);
+                    uint8_t ip_arr[4];
+                    memcpy(ip_arr, &clientAddr.sin_addr.s_addr, 4);
+                    print_ip_address(ip_arr);
+                    
+                    insert_peerlist_connect_to_us(ip_arr, clientAddr.sin_port, peerSocket);
+                }
+                else if(peers_sockets[i].revents == POLLIN){
                     struct Peer *peer = get_peer_from_socket(peers_sockets[i].fd);
                     DEBUG_PRINT_NET("[Peer Manager] Got poll event on socket=%d\n", peers_sockets[i].fd);
 
@@ -863,6 +949,7 @@ int start_peer_manager(Torrent *torrent){
                         DEBUG_PRINT_NET("[Peer Manager] Peer not handshaked...\n");
 
                         uint8_t pstrlen;
+                    
 
                         if (read_n_bytes(&pstrlen, 1, peers_sockets[i].fd) == -1) {
                             remove_from_peer_linked_list(peer);
@@ -909,7 +996,12 @@ int start_peer_manager(Torrent *torrent){
                             continue;
                         };
 
-                        send_interested_message(peer, 1);
+                        if(peer->connect_to_use){
+                            send_handshake_message(peer);
+                        }
+                        else{
+                            send_interested_message(peer, 1);
+                        }
                     }
                 }
             }
