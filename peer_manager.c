@@ -703,8 +703,6 @@ int start_peer_manager(Torrent *torrent){
 		exit(1);
 	}
 
-
-
     update_pollfd();
 
     while(1){
@@ -719,6 +717,8 @@ int start_peer_manager(Torrent *torrent){
                     ssize_t numBytesGet;
 
                     int peerSocket = accept(clientSock, (struct sockaddr *) &clientAddr, &clientAddrLen);
+                    printf("SOMEONE CONNECTED TO US!");
+                    print_ip_address(clientAddr.sin_addr.s_addr);
 
                     insert_peerlist_connect_to_us(clientAddr.sin_addr.s_addr, clientAddr.sin_port, peerSocket);
                     
@@ -1036,7 +1036,7 @@ int start_peer_manager(Torrent *torrent){
             // DEBUG_PRINTF("\n\n\n");
             gettimeofday(&periodic_function_time, NULL);
         }
-        if(current_time.tv_sec - tracker_request_time.tv_sec >= interval){
+        if(current_time.tv_sec - tracker_request_time.tv_sec >= 10){
             send_tracker_request();
             gettimeofday(&tracker_request_time, NULL);
         }

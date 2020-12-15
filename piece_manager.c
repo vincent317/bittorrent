@@ -468,7 +468,7 @@ void piece_manager_periodic() {
                     peer_manager_complete();
                     file_assembler_begin(torrentCopy);
                     printf("All files assembled! Terminating.\n\n");
-                    exit(1);
+                    //exit(1);
                 }
             }
             else if(buffer[0] == 'r'){
