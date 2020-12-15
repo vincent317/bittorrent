@@ -241,7 +241,7 @@ int torrent_hash_to_piece_index(uint8_t* hash) {
         for (int j = 0; 20 > j; j++) {
             long int idx = 20*i + j;
 
-            if (hash[j] != g_torrent->piece_hashes[i][j]) continue;
+            if (hash[j] != g_torrent->piece_hashes[i][j]) break;
             if (j == 19) return i;
         }
     }

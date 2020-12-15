@@ -1032,8 +1032,8 @@ int peer_manager_begin_download(struct Peer* peer, int pieceIndex) {
         return 0;
     }
 
+    uint32_t downloaded_on_piece = (peer->curr_dl_next_subpiece) * PIECE_DOWNLOAD_SIZE;
     uint32_t totalRemainingByte = g_torrent->length - (pieceIndex * g_torrent->piece_length);
-    DEBUG_PRINTF("[Peer Manager] Bytes until end: %d\n", (int) totalRemainingByte);
 
     uint32_t totallen = 13;
     totallen = htobe32(totallen);
@@ -1041,9 +1041,11 @@ int peer_manager_begin_download(struct Peer* peer, int pieceIndex) {
     uint32_t pieceIndex_t = pieceIndex;
     pieceIndex_t = htobe32(pieceIndex_t);
     uint32_t begin = 0;
-    uint32_t length = g_torrent->piece_length < totalRemainingByte ? g_torrent->piece_length : totalRemainingByte;
 
-    if (length > PIECE_DOWNLOAD_SIZE) {
+    uint32_t total_length_of_piece = g_torrent->piece_length < totalRemainingByte ?
+        g_torrent->piece_length : totalRemainingByte;
+
+    if (total_length_of_piece > PIECE_DOWNLOAD_SIZE) {
         // if we are already downloading this piece, get the next subpiece
         if (
             peer->curr_dl &&
@@ -1052,26 +1054,43 @@ int peer_manager_begin_download(struct Peer* peer, int pieceIndex) {
             begin += peer->curr_dl_next_subpiece * PIECE_DOWNLOAD_SIZE;
         }
 
-        // peer->curr_dl_next_subpiece++;        
-        length = PIECE_DOWNLOAD_SIZE < g_torrent->piece_length - begin ? PIECE_DOWNLOAD_SIZE : g_torrent->piece_length - begin;
+        // peer->curr_dl_next_subpiece++;   
+
+        // if we are downloading a chunk larger than max subpiece size
+        if (PIECE_DOWNLOAD_SIZE < (g_torrent->piece_length - begin)) {
+            total_length_of_piece = PIECE_DOWNLOAD_SIZE;
+        }
+
+        // otherwise, length is piece length - what we already downloaded
+        else {
+            total_length_of_piece = g_torrent->piece_length - begin;
+        }
+
+        /*
+            If begin+length puts us past the end of the file, truncate the length
+            to only request what remains
+        */
+        if ((totalRemainingByte - downloaded_on_piece) < total_length_of_piece) {
+            total_length_of_piece = totalRemainingByte - downloaded_on_piece;
+        }
 
         DEBUG_PRINTF("[Peer Manager] - Sending request to peer for subpiece, [%d - %d), len=%d, piece=%d\n",
-            (int) begin, (int) (begin + length), length, pieceIndex);
+            (int) begin, (int) (begin + total_length_of_piece), total_length_of_piece, pieceIndex);
     }
 
     peer->curr_dl_next_subpiece++;
 
-    DEBUG_PRINTF("[Peer Manager] begin=%d, length=%d\n", begin, length);
+    DEBUG_PRINTF("[Peer Manager] begin=%d, length=%d\n", begin, total_length_of_piece);
 
     begin = htobe32(begin);
-    length = htobe32(length);
+    total_length_of_piece = htobe32(total_length_of_piece);
 
     uint8_t buffer[17];
     memcpy(buffer, &totallen, 4);
     memcpy(buffer+4, &ID, 1);
     memcpy(buffer+5, &pieceIndex_t, 4);
     memcpy(buffer+9, &begin, 4);
-    memcpy(buffer+13, &length, 4);
+    memcpy(buffer+13, &total_length_of_piece, 4);
 
     if(send_n_bytes(buffer, 17, cur->socket) == -1){
         DEBUG_PRINTF("[Peer Manager] - During begin download, sending download request failed\n");

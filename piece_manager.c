@@ -5,6 +5,18 @@ uint8_t * myBitfield;
 int maxNumPiece;
 Torrent * torrentCopy;
 
+uint32_t num_pieces_downloaded() {
+    uint32_t n = 0;
+
+    for (int i = 0; maxNumPiece > i; i++) {
+        if (have_piece(myBitfield, i)) {
+            n++;
+        }
+    }
+
+    return n;
+};
+
 void piece_manager_startup(Torrent * torrent) {
     // Set initial for list
     torrentCopy = torrent;
@@ -19,6 +31,16 @@ void piece_manager_startup(Torrent * torrent) {
     if (getcwd(cwd1, sizeof(cwd1)) != NULL) {
        // DEBUG_PRINTF("1 Current working dir: %s\n", cwd1);
     }
+
+    /*
+    for(int i = 0; g_torrent->num_pieces > i; i++) {
+        uint8_t* piece_hash = g_torrent->piece_hashes[i];
+        uint8_t* piece_hash_str = sha1_to_hexstr(piece_hash);
+        printf("%d -> %s\n", i, piece_hash_str);
+    }
+    */
+
+    // exit(1);
     
     mkdir(".torrent_data", 0777);
     chdir(".torrent_data");
@@ -54,14 +76,13 @@ void piece_manager_startup(Torrent * torrent) {
     if((folder = opendir(folderPath)) != NULL){
         while((file = readdir(folder)) != NULL){
             if(strlen(file->d_name) > 5){
-                char pieceName[255];
-                memset(pieceName, 0, sizeof(char) * 255);
+                char* pieceName;
 
                 if (strlen(file->d_name) != 40) {
                     continue;
                 }
 
-                memcpy(pieceName, file->d_name, 40);
+                pieceName = file->d_name;
 
                 // Convert pieceHash to byte
                 uint8_t pieceHash[20];
@@ -69,6 +90,7 @@ void piece_manager_startup(Torrent * torrent) {
 
                 // Get piece index from hash and set bitfield
                 int pieceIndex = torrent_hash_to_piece_index(pieceHash);
+                // printf("Hash to Index: %s --> %d\n", pieceName, pieceIndex);
 
                 if (pieceIndex < 0) {
                     printf("Error: corrupted piece found; unknown piece hash.\n");
@@ -88,11 +110,16 @@ void piece_manager_startup(Torrent * torrent) {
 
                 uint8_t* piece_hexstr = sha1_to_hexstr(piece_hash);
 
-                if (strcmp(piece_hexstr, pieceName) != 0) {
+                uint8_t* real_piece_hash = g_torrent->piece_hashes[pieceIndex];
+                uint8_t* real_piece_hexstr = sha1_to_hexstr(real_piece_hash);
+
+                if (strcmp(piece_hexstr, real_piece_hexstr) != 0) {
                     printf("Error: corrupted piece=%d found; hash doesn't match. deleting.\n",
                         pieceIndex);
+                    
+                    printf("\texpected: %s\n\treceived: %s\n", real_piece_hexstr, piece_hexstr);
 
-                    remove(piece_path);
+                    // remove(piece_path);
                     
                     continue;
                 }
@@ -108,7 +135,7 @@ void piece_manager_startup(Torrent * torrent) {
     }
 
     printf("Loaded %d/%d pieces from storage\n",
-        pieces_loaded, g_torrent->num_pieces);
+        (int) pieces_loaded,  (int) g_torrent->num_pieces);
 }
 
 int piece_manager_am_interested(struct Peer * peer){
@@ -413,8 +440,10 @@ void piece_manager_periodic() {
 
                         continue;
                     } else {
-                        printf("[Piece Manager] Downloaded piece %d. Hashes validated! Copying to piece permanant storage\n",
-                            currentPieceIndex);
+                        uint32_t num_dl = num_pieces_downloaded();
+                        float pct = ((float) num_dl / (float) g_torrent->num_pieces) * 100.0;
+                        printf("[Piece Manager] Downloaded %d/%d pieces (%d pct complete)\n",
+                            (int) num_dl, (int) g_torrent->num_pieces, (int) pct);
                     }
                     
                     // Copy to permanant storage
@@ -435,9 +464,11 @@ void piece_manager_periodic() {
                 }
 
                 if(have_all_piece()){
-                    printf("------ALL PIECES DOWNLOADED!\n------");
+                    printf("\nALL PIECES DOWNLOADED!\n");
                     peer_manager_complete();
                     file_assembler_begin(torrentCopy);
+                    printf("All files assembled! Terminating.\n\n");
+                    exit(1);
                 }
             }
             else if(buffer[0] == 'r'){
