@@ -93,7 +93,7 @@ void create_upload_manager(UploadDownloadManagerArgs* args) {
         pieceIndex = htobe32(pieceIndex);
         begin = htobe32(begin);
 
-        uint8_t * buffer = calloc(9 + args->len, sizeof(uint8_t));
+        uint8_t * buffer = calloc(4 + 9 + args->len, sizeof(uint8_t));
         memcpy(buffer, &bufferLen, 4);
         memcpy(buffer + 4, &ID, 1);
         memcpy(buffer + 5, &pieceIndex, 4);
@@ -103,11 +103,11 @@ void create_upload_manager(UploadDownloadManagerArgs* args) {
 
         int amountRead = 0;
         while(amountRead < args->len ){
-            int numGot = fread(buffer + amountRead, 1, args->len - amountRead, piece);
+            int numGot = fread(buffer + amountRead + 4 + 9, 1, args->len - amountRead, piece);
             amountRead = amountRead + numGot;
         }
 
-        if(send_n_bytes(buffer, 9 + args->len, args->peer->socket) == -1){
+        if(send_n_bytes(buffer, 4 + 9 + args->len, args->peer->socket) == -1){
             write(args->write_fd, "f", sizeof(char));
         }
         else{
