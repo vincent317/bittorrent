@@ -1,5 +1,6 @@
 
 #include "upload_download_manager.h"
+#include "piece_manager.h"
 
 /*
     NOTE: Do not use chdir since chdir is process wide!
@@ -55,7 +56,68 @@ void create_download_manager(UploadDownloadManagerArgs* args) {
 
 void create_upload_manager(UploadDownloadManagerArgs* args) {
     DEBUG_PRINTF("Created upload manager!\n");
-    write(args->write_fd, "f", sizeof(char));
+//    write(args->write_fd, "f", sizeof(char));
+    Torrent * torrent = piece_manager_get_torrent();
+    char * filename = sha1_to_hexstr(torrent->piece_hashes[args->pieceIndex]);
+    char filePath[256];
+    memset(filePath, 0, sizeof(char) * 256);
+    filePath[0] = '\0';
+    strcat(filePath, "./.torrent_data/");
+    strcat(filePath, torrent->hash_str);
+    strcat(filePath, "/");
+    strcat(filePath, filename);
+
+    FILE * piece = fopen(filePath, "r");
+    if(piece == NULL){
+        DEBUG_PRINTF("Fail opening piece %s\n", filePath);
+    }
+    else{
+        DEBUG_PRINTF("Success opening piece %s\n", filePath);
+    }
+
+    fseek(piece, 0L, SEEK_END);
+    uint64_t fileSize = ftell(piece);
+    rewind(piece);
+
+    double remaining = (double) fileSize - (double)args->begin;
+
+
+    if(args->len <= 1600 && remaining >= args->len){
+        // Send piece: <len=0009+X><id=7><index><begin><block>
+        uint32_t bufferLen = 9 + args->len;
+        uint8_t ID = 7;
+        uint32_t pieceIndex = args->pieceIndex;
+        uint32_t begin = args->begin;
+
+        bufferLen = htobe32(bufferLen);
+        pieceIndex = htobe32(pieceIndex);
+        begin = htobe32(begin);
+
+        uint8_t * buffer = calloc(9 + args->len, sizeof(uint8_t));
+        memcpy(buffer, &bufferLen, 4);
+        memcpy(buffer + 4, &ID, 1);
+        memcpy(buffer + 5, &pieceIndex, 4);
+        memcpy(buffer + 9, &begin, 4);
+
+        fseek(piece, args->begin, SEEK_SET);
+
+        int amountRead = 0;
+        while(amountRead < args->len ){
+            int numGot = fread(buffer + amountRead, 1, args->len - amountRead, piece);
+            amountRead = amountRead + numGot;
+        }
+
+        if(send_n_bytes(buffer, 9 + args->len, args->peer->socket) == -1){
+            write(args->write_fd, "f", sizeof(char));
+        }
+        else{
+            write(args->write_fd, "s", sizeof(char));
+        }
+    }
+    else{
+        // Fail
+        write(args->write_fd, "f", sizeof(char));
+    } 
 };
 
 void* begin_upload_download(void* vargp) {
