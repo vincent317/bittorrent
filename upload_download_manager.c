@@ -113,6 +113,8 @@ void create_upload_manager(UploadDownloadManagerArgs* args) {
         else{
             write(args->write_fd, "s", sizeof(char));
         }
+
+        free(buffer);
     }
     else{
         // Fail
