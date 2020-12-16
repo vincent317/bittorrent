@@ -118,6 +118,7 @@ void create_upload_manager(UploadDownloadManagerArgs* args) {
         // Fail
         write(args->write_fd, "f", sizeof(char));
     } 
+    fclose(piece);
 };
 
 void* begin_upload_download(void* vargp) {
