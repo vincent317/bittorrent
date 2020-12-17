@@ -1,9 +1,10 @@
 
 #include "cli.h"
 #include "torrent_runtime.h"
+#include <arpa/inet.h>
 
 int main(int argc, const char** argv) {
-    if (argc != 2 && argc != 3) {
+    if (argc != 3  && argc != 5) {
         printf("Invalid execution, use: ./bittorrent <torrent path> [debug, y/n]\n");
         return 0;
     }
@@ -12,7 +13,19 @@ int main(int argc, const char** argv) {
 
     if (argc == 3 && strcmp(argv[2], "y") == 0) {
         printf("Running in debug mode.....\n");
+        direct_connected = 0;
         g_debug = 1;
+    }else if(argc ==5){
+        direct_connected = 1;
+        uint32_t temp;
+        inet_pton(AF_INET, argv[2], &temp);
+        memcpy(direct_connect_address, &temp, 4);
+        direct_connect_port = htons(atoi(argv[3]));
+
+        if(argc == 5){
+        if (strcmp(argv[2], "y") == 0)
+            g_debug = 1;
+        }
     }
 
     // update the root working directory

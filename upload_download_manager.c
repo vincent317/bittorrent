@@ -55,7 +55,6 @@ void create_download_manager(UploadDownloadManagerArgs* args) {
 };
 
 void create_upload_manager(UploadDownloadManagerArgs* args) {
-    DEBUG_PRINTF("Created upload manager!\n");
 //    write(args->write_fd, "f", sizeof(char));
     Torrent * torrent = piece_manager_get_torrent();
     char * filename = sha1_to_hexstr(torrent->piece_hashes[args->pieceIndex]);
@@ -74,15 +73,15 @@ void create_upload_manager(UploadDownloadManagerArgs* args) {
     else{
         DEBUG_PRINTF("Success opening piece %s\n", filePath);
     }
-
     fseek(piece, 0L, SEEK_END);
     uint64_t fileSize = ftell(piece);
     rewind(piece);
 
     double remaining = (double) fileSize - (double)args->begin;
 
+    //printf("argslen %d, remaing %f\n", args->len, remaining);
 
-    if(args->len <= 1600 && remaining >= args->len){
+    if(args->len <= 16000 && remaining >= args->len){
         // Send piece: <len=0009+X><id=7><index><begin><block>
         uint32_t bufferLen = 9 + args->len;
         uint8_t ID = 7;
@@ -106,7 +105,7 @@ void create_upload_manager(UploadDownloadManagerArgs* args) {
             int numGot = fread(buffer + amountRead + 4 + 9, 1, args->len - amountRead, piece);
             amountRead = amountRead + numGot;
         }
-
+        
         if(send_n_bytes(buffer, 4 + 9 + args->len, args->peer->socket) == -1){
             write(args->write_fd, "f", sizeof(char));
         }
