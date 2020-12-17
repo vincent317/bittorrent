@@ -370,9 +370,9 @@ int send_handshake_message(struct Peer *peer){
     bitfield_packet = calloc(4096, sizeof(uint8_t));
 
     uint32_t len_nbo = htobe32(1 + bitfield_len);
-    memcpy(bitfield_packet + 0, &len_nbo, sizeof(uint32_t));
-
+    memcpy(bitfield_packet , &len_nbo, sizeof(uint32_t));
     *(bitfield_packet + 4) = 5;
+    memcpy(bitfield_packet + 5, piece_manager_get_my_bitfield(), piece_manager_get_my_bitfield_size());
 
     if (send_n_bytes((void*) bitfield_packet, 4 + 1 + bitfield_len, peer->socket) == -1) {
         DEBUG_PRINTF("error!!!! sending bitfield!!!\n");
@@ -666,19 +666,28 @@ int start_peer_manager(Torrent *torrent){
     gettimeofday(&periodic_function_time, NULL);
     gettimeofday(&tracker_request_time, NULL);
     g_torrent = torrent;
-  
-    send_tracker_request();
     
-    struct Peer *peer = head_peer;
-    while(peer != NULL){
-        struct Peer *next = peer->next;
-        if(send_handshake_message(peer) == 0){
-            DEBUG_PRINTF("send handshaking message failed\n");
+    if(direct_connected == 0){
+        send_tracker_request();
+        
+        struct Peer *peer = head_peer;
+        while(peer != NULL){
+            struct Peer *next = peer->next;
+            if(send_handshake_message(peer) == 0){
+                DEBUG_PRINTF("send handshaking message failed\n");
+            }
+            peer = next;
         }
-        peer = next;
+    }else{
+        insert_peerlist_ifnotexists(direct_connect_address, direct_connect_port);
+        if(send_handshake_message(head_peer) == 0){
+            printf("send handshaking message failed\n");
+        }
     }
 
     uint16_t port = 10000;
+    if(direct_connected == 1)
+        port = 10001;
     struct sockaddr_in serverAddress;
 	memset(&serverAddress, 0, sizeof(serverAddress));
 	serverAddress.sin_family = AF_INET;
@@ -698,6 +707,7 @@ int start_peer_manager(Torrent *torrent){
         perror("setsockopt");   
         exit(EXIT_FAILURE);   
     }  
+    
 */
 
 	// Bind to the local address
@@ -725,7 +735,6 @@ int start_peer_manager(Torrent *torrent){
                     int peerSocket = accept(clientSock, (struct sockaddr *) &clientAddr, &clientAddrLen);
                     uint8_t ip_arr[4];
                     memcpy(ip_arr, &clientAddr.sin_addr.s_addr, 4);
-                    print_ip_address(ip_arr);
                     
                     insert_peerlist_connect_to_us(ip_arr, clientAddr.sin_port, peerSocket);
                 }
@@ -804,6 +813,8 @@ int start_peer_manager(Torrent *torrent){
                         if(ID == 2) {
                             print_ip_address(peer->address);
                             DEBUG_PRINT_NET("[Peer Manager] interested us\n");
+                            send_choked_message(peer, 0);
+                            peer->am_choking = 0;
                             peer->peer_interested = 1;
                         };
                         
@@ -862,7 +873,7 @@ int start_peer_manager(Torrent *torrent){
                         // request: <len=0013><id=6><index><begin><length>
                         if(ID == 6) {
                             DEBUG_PRINT_NET("[Peer Manager] request message\n");
-
+            
                             uint32_t pieceIndex = 0;
                             uint32_t begin = 0;
                             uint32_t length = 0;
@@ -911,26 +922,11 @@ int start_peer_manager(Torrent *torrent){
                             // struct timeval timenow;
                             // gettimeofday(&timenow, NULL);
 
-                            DEBUG_PRINT_NET("[Peer Manager] Got id=7, piece message from peer: ");
+                        
                             print_ip_address(peer->address);
 
                             peer->curr_dl_begin = 1;
 
-                            /*if((timenow.tv_sec - peer->download_req_sent_time.tv_sec > 5) && 
-                                peer->curr_dl == 1){
-                                peer->download_rate = 0;
-                                peer->curr_dl = 0;
-                                peer->curr_dl_begin = 0;
-                                peer->curr_dl_piece_idx = 0;
-                                peer->curr_dl_next_subpiece = 0;
-                                peer->am_choking = 1;
-                                piece_manager_cancel_request(peer->curr_dl_piece_idx);
-                                if(peer->curr_up == 0 && send_choked_message(peer, 1) == -1){
-                                    DEBUG_PRINT_NET("cnmd\n");
-                                    remove_from_peer_linked_list(peer);
-                                    number_of_peers--;
-                                }
-                            }else{*/
                                 gettimeofday(&(peer->last_received_message_time), NULL);
                                 uint32_t p_idx_nbo;
                                 uint32_t p_begin_nbo;
@@ -956,7 +952,6 @@ int start_peer_manager(Torrent *torrent){
 
                         uint8_t pstrlen;
                     
-
                         if (read_n_bytes(&pstrlen, 1, peers_sockets[i].fd) == -1) {
                             remove_from_peer_linked_list(peer);
                             number_of_peers--;
@@ -1042,13 +1037,13 @@ int start_peer_manager(Torrent *torrent){
             // DEBUG_PRINTF("\n\n\n");
             gettimeofday(&periodic_function_time, NULL);
         }
-        if(current_time.tv_sec - tracker_request_time.tv_sec >= interval){
+        if(direct_connected == 0 && current_time.tv_sec - tracker_request_time.tv_sec >= interval){
             send_tracker_request();
             gettimeofday(&tracker_request_time, NULL);
         }
 
         //Drop any peer who has not sent us any messages in 120 seconds
-        peer = head_peer;
+        struct Peer *peer = head_peer;
         struct timeval now;
         gettimeofday(&now, NULL);
 
