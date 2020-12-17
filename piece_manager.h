@@ -52,6 +52,9 @@ struct OpenPeer{
 
 /////////////////////////////////////////////////////////////////////////
 
+// Get the torrent
+Torrent * piece_manager_get_torrent();
+
 // Number of downloaded piece
 uint32_t num_pieces_downloaded();
 

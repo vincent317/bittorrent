@@ -6,6 +6,9 @@ int maxNumPiece;
 Torrent * torrentCopy;
 uint32_t uploadedSubPiece = 0;
 
+Torrent * piece_manager_get_torrent(){
+    return torrentCopy;
+}
 
 uint32_t num_pieces_downloaded() {
     uint32_t n = 0;
